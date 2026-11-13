@@ -29,6 +29,7 @@ student:                  # I1/D3.0; tokenizer+template files only are in data/s
   model: CohereLabs/tiny-aya-en-thinker
   tokenizer_dir: data/student_tok
   max_len: 32768
+  generation: {max_new_tokens: 1024, do_sample: false, dtype: float16}   # B0 and S2 share these (P1)
 
 user_sim:                 # D3.2
   model: deepseek/deepseek-flash

@@ -35,10 +35,11 @@ def call_cost(usage: dict, rates: dict) -> float:
             + usage["out"] * rates["output"]) / 1e6
 
 
-def episode_records(sim, model_by_role: dict, prices: dict, context: dict) -> list[dict]:
+def episode_records(sim, model_by_role: dict, prices: dict, context: dict,
+                    skip_roles: tuple = ()) -> list[dict]:
     """One ledger record per LLM call in a tau2 SimulationRun.
 
-    role 'assistant' -> teacher agent, role 'user' -> user simulator.
+    role 'assistant' -> teacher agent, role 'user' -> user simulator (skip_roles drops one of them).
     """
     out = []
     for i, msg in enumerate(sim.messages or []):
@@ -46,6 +47,8 @@ def episode_records(sim, model_by_role: dict, prices: dict, context: dict) -> li
         if not raw:
             continue  # tool results, initial greeting, etc. — no LLM call
         role = "agent" if msg.role == "assistant" else "user_sim"
+        if role in skip_roles:
+            continue  # e.g. the local student: no API usage to price
         model = model_by_role[role]
         usage = usage_from_raw(raw)
         created = datetime.fromtimestamp(raw["created"], tz=timezone.utc)
