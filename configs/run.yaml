@@ -25,6 +25,11 @@ teacher:                  # C2
       allow_reasoning: true
       llm_args: {extra_body: {thinking: {type: enabled}}}
 
+student:                  # I1/D3.0; tokenizer+template files only are in data/student_tok
+  model: CohereLabs/tiny-aya-en-thinker
+  tokenizer_dir: data/student_tok
+  max_len: 32768
+
 user_sim:                 # D3.2
   model: deepseek/deepseek-flash
   llm_args:
