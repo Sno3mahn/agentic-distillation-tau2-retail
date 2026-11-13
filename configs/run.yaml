@@ -8,11 +8,22 @@ split:
   seed: 20261113
   path: data/splits/retail_split.json
 
-teacher:                  # C2; D3.1 non-thinking mode
+teacher:                  # C2
   model: deepseek/deepseek-flash
-  llm_args:
-    temperature: 0.7      # >0 so K episodes per task differ (proposed value)
-    extra_body: {thinking: {type: disabled}}
+  default_variant: base
+  variants:               # compared in the S1 retry (approved 2026-11-14)
+    base:                 # D3.1 as first built: non-thinking, no prompted rationale
+      agent: llm_agent
+      allow_reasoning: false
+      llm_args: {temperature: 0.7, extra_body: {thinking: {type: disabled}}}
+    rationale:            # (a) non-thinking + one-sentence rationale before each tool call
+      agent: rationale_llm_agent
+      allow_reasoning: false
+      llm_args: {temperature: 0.7, extra_body: {thinking: {type: disabled}}}
+    thinking:             # (b) DeepSeek thinking mode (temperature is not applicable)
+      agent: llm_agent
+      allow_reasoning: true
+      llm_args: {extra_body: {thinking: {type: enabled}}}
 
 user_sim:                 # D3.2
   model: deepseek/deepseek-flash

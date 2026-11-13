@@ -21,7 +21,7 @@ from tau2.evaluator.evaluator import EvaluationType
 from tau2.evaluator.evaluator_communicate import CommunicateEvaluator
 from tau2.runner import get_tasks, run_single_task
 
-from agentic_distill import REPO_ROOT, load_config
+from agentic_distill import REPO_ROOT, agents, load_config  # noqa: F401  (agents registers variants)
 from agentic_distill.ledger import Ledger, episode_records, is_peak
 from agentic_distill.splits import load_split
 
@@ -45,11 +45,16 @@ def main() -> None:
     ap.add_argument("--trials", type=int, default=1)
     ap.add_argument("--slice", required=True, help="budget slice name from configs/run.yaml")
     ap.add_argument("--run-name", default=None)
+    ap.add_argument("--variant", default=None, help="teacher variant from configs/run.yaml")
     ap.add_argument("--allow-peak", action="store_true",
                     help="override the default off-peak-only guard (peak = 2x price)")
     args = ap.parse_args()
 
     cfg = load_config()
+    variant = args.variant or cfg["teacher"]["default_variant"]
+    if variant not in cfg["teacher"]["variants"]:
+        sys.exit(f"unknown variant {variant}; choose from {list(cfg['teacher']['variants'])}")
+    var = cfg["teacher"]["variants"][variant]
     # The user's shell variable is API_DEEPSEEK; LiteLLM reads DEEPSEEK_API_KEY.
     if not os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("API_DEEPSEEK"):
         os.environ["DEEPSEEK_API_KEY"] = os.environ["API_DEEPSEEK"]
@@ -77,14 +82,14 @@ def main() -> None:
     # which static checkers misread as required keyword arguments.
     config = TextRunConfig.model_validate({
         "domain": cfg["domain"],
-        "agent": "llm_agent", "llm_agent": cfg["teacher"]["model"], "llm_args_agent": cfg["teacher"]["llm_args"],
+        "agent": var["agent"], "llm_agent": cfg["teacher"]["model"], "llm_args_agent": var["llm_args"],
         "user": "user_simulator", "llm_user": cfg["user_sim"]["model"], "llm_args_user": cfg["user_sim"]["llm_args"],
         "max_steps": ep["max_steps"], "max_errors": ep["max_errors"], "seed": ep["base_seed"],
         "communicate_scoring": scoring,
     })
     model_by_role = {"agent": cfg["teacher"]["model"], "user_sim": cfg["user_sim"]["model"]}
 
-    run_name = args.run_name or f"{args.slice}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+    run_name = args.run_name or f"{args.slice}_{variant}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
     out_dir = REPO_ROOT / cfg["paths"]["raw"] / run_name
     out_dir.mkdir(parents=True, exist_ok=False)
 
@@ -97,12 +102,12 @@ def main() -> None:
             seed = ep["base_seed"] + trial
             sim = run_single_task(config, task, seed=seed, evaluation_type=EvaluationType.ENV)
             sim.trial = trial
-            ctx = {"slice": args.slice, "run": run_name, "task_id": task.id, "trial": trial}
+            ctx = {"slice": args.slice, "variant": variant, "run": run_name, "task_id": task.id, "trial": trial}
             recs = episode_records(sim, model_by_role, cfg["prices"], ctx)
             ledger.append(recs)
             sc = score(sim, task, scoring)
             usage = {k: sum(r[k] for r in recs) for k in ("hit", "miss", "out", "reasoning")}
-            meta = {**ctx, "seed": seed, "model": cfg["teacher"]["model"], "mode": "non-thinking",
+            meta = {**ctx, "seed": seed, "model": cfg["teacher"]["model"], "mode": "thinking" if var["allow_reasoning"] else "non-thinking",
                     "user_sim_model": cfg["user_sim"]["model"], "sim_id": sim.id,
                     "n_llm_calls": len(recs), "usage": usage,
                     "cost_usd": sum(r["cost_usd"] for r in recs),
@@ -118,7 +123,7 @@ def main() -> None:
                   f"term={sc['termination_reason']} msgs={meta['n_messages']} calls={len(recs)} "
                   f"tok hit/miss/out={usage['hit']}/{usage['miss']}/{usage['out']} "
                   f"cost=${meta['cost_usd']:.4f}")
-            if meta["thinking_detected"]:
+            if meta["thinking_detected"] and not var["allow_reasoning"]:
                 print("STOP: reasoning content detected; non-thinking mode is not taking effect")
                 return
     print(f"slice {args.slice} total=${ledger.total(slice=args.slice):.4f} / ${slice_budget:.2f}; "
