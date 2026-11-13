@@ -1,0 +1,16 @@
+[project]
+name = "agentic-distill"
+version = "0.1.0"
+description = "Distilling DeepSeek agent trajectories on tau2-bench retail into Tiny Aya En-Thinker"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "tau2",      # installed editable from third_party/tau2-bench @ c06b07dd7c4d
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

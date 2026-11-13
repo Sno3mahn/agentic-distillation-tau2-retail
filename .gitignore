@@ -1,0 +1,7 @@
+third_party/
+data/
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+CLAUDE.md

@@ -1,0 +1,48 @@
+# Run configuration (S1). Prices verified 2026-11-13 from
+# https://api-docs.deepseek.com/quick_start/pricing  (USD per 1M tokens)
+tau2_commit: c06b07dd7c4d4ec61ba6ff9bcdf0b15dd7ef36d4
+domain: retail
+
+split:
+  dev_size: 14            # D3.3: 60 train / 14 dev (from official 74 train) / 40 test
+  seed: 20261113
+  path: data/splits/retail_split.json
+
+teacher:                  # C2; D3.1 non-thinking mode
+  model: deepseek/deepseek-flash
+  llm_args:
+    temperature: 0.7      # >0 so K episodes per task differ (proposed value)
+    extra_body: {thinking: {type: disabled}}
+
+user_sim:                 # D3.2
+  model: deepseek/deepseek-flash
+  llm_args:
+    temperature: 0.0      # tau2 default for the user simulator
+    extra_body: {thinking: {type: disabled}}
+
+episodes:
+  K_teacher: 6            # D3.4
+  k_eval: 3
+  max_steps: 200          # tau2 default
+  max_errors: 10          # tau2 default
+  base_seed: 300          # tau2 default; trial t uses base_seed + t
+
+# Reward (user-decided 2026-11-13, option B): DB check x substring COMMUNICATE
+# on communicate_info, computed from tau2's evaluators; NL_ASSERTION judge not used.
+reward:
+  communicate_scorer: substring
+
+prices:
+  deepseek/deepseek-flash:
+    off_peak: {cache_hit: 0.003, cache_miss: 0.15, output: 0.60}
+    peak:     {cache_hit: 0.006, cache_miss: 0.30, output: 1.20}
+  # Peak: Mon-Fri 01:00-04:00 and 06:00-10:00 UTC (Chinese public holidays not modelled -> conservative)
+  peak_windows_utc: [[1, 4], [6, 10]]
+
+budget:
+  total_usd: 5.00
+  slices_usd: {s1_smoke: 0.10, s3_pilot: 0.40, s4_teacher_data: 3.00, eval_teacher: 1.00, reserve: 0.50}
+
+paths:
+  raw: data/raw
+  ledger: data/ledger.jsonl
