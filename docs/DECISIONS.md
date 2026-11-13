@@ -79,6 +79,17 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 
 **Consequence:** reported numbers are not the official leaderboard score; the write-up must say so. **Status:** decided.
 
+## D5 — Multi-call turns (2026-11-14, from S2a evidence)
+**Decision:** an assistant turn is optional short text followed by zero or more `<tool_call>` blocks; results return in one user turn as `<tool_result name=…>` blocks, in call order. This refines D3.5.
+**Reason:** in the 21 saved teacher episodes, 33 of 246 assistant turns carry 2–6 parallel calls, and 57 carry text plus a call. A one-call protocol would have dropped or split them.
+**Status:** decided.
+
+## D6 — Empty thinking block on every assistant turn (2026-11-14, user-confirmed)
+**Decision:** the formatter renders `<|START_THINKING|><|END_THINKING|>` (the `/no_think` form) at the start of every assistant turn, in history as well as in the generation prompt. System and user turns follow Cohere's template exactly (tested).
+**Reason:** the native template omits the thinking block for past assistant turns but includes it in the generation prompt, so the prefix property fails (checked: `False`). One-pass-per-episode SFT needs each turn to look as it did when generated.
+**Alternative considered:** native history with one training example per assistant turn. Rejected: roughly 10× the sequences of 5–10K tokens on a T4.
+**Cost:** history is non-native for both B0 and S2 (same for both, so the comparison stays fair). The effect on B0 is unmeasured. **Status:** decided.
+
 ## Open, for stage 5 (design). Resolved by D3 on 2026-11-13
 - Thinking policy: no-think, short thoughts, or distilled DeepSeek thinking.
 - The text format for tool calls and tool results, and the loss masks. No Aya template has a tool role (R4).

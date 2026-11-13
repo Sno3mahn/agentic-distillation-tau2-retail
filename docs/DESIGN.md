@@ -87,3 +87,9 @@ _Stage 5, approved 2026-11-13. Decisions are in DECISIONS.md (D1–D3). Requirem
 - DeepSeek works through LiteLLM as both agent and user.
 - AuditKIT accepts precomputed records.
 - Cost is about $0.006 per episode.
+
+## S2a results (2026-11-14)
+- Formatter implemented per D5 and D6; tests cover template equality, parse round-trip (246 turns, 0 mismatches) and the token-level prefix property.
+- Fixed system prefix: 4,632 tokens (6.7 KB policy, **16** tool schemas; earlier docs said 17, which was not verified).
+- Rendered teacher episodes: median ~9.5K tokens, max 10,354; none near the 32K limit.
+- Still untested: whether the real model can follow the dialect (S2b), and the loss masks (S4).
