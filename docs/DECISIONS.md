@@ -96,6 +96,13 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 **Reason:** otherwise B0's score measures a formatting failure, not capability. The fine-tuned model learns to stop after its calls, so S2 is unaffected.
 **Kept as evidence:** the pre-D7 run is cited in the write-up as B0 hallucinating tool results. **Status:** decided.
 
+## D8 — Teacher variant and gate values (2026-11-14, user-decided at the S3 gate)
+**Decision:** training data comes from the **rationale** variant (DeepSeek-Flash, non-thinking, system prompt asks for one short sentence before every tool call). **K = 6** episodes per train task, **k = 3** eval trials per task.
+**Evidence (EXPERIMENT_LOG E1):** 10 tasks × 2 trials × 3 variants. Pass rates 85% / 95% / 100% (base / rationale / thinking), with paired CIs touching 0, so success differences are not established. Cost per episode $0.0020 / $0.0020 / $0.0031.
+**Reasoning:** data is success-filtered, so teacher pass rate only sets yield (high for all variants), not quality. Rationale puts visible rationales on ~93% of tool-call turns (D3.1's short visible thoughts), at the lowest cost.
+**Alternatives:** base (sparse visible text), thinking (hidden reasoning is not shown to the student; 1.55× cost), thinking + rationale (untested).
+**Would reopen if:** the student underperforms, the kept data is too skewed to easy tasks, or the S2 comparison suggests richer thoughts. **Status:** decided.
+
 ## Open, for stage 5 (design). Resolved by D3 on 2026-11-13
 - Thinking policy: no-think, short thoughts, or distilled DeepSeek thinking.
 - The text format for tool calls and tool results, and the loss masks. No Aya template has a tool role (R4).
