@@ -97,3 +97,13 @@ _Stage 5, approved 2026-11-13. Decisions are in DECISIONS.md (D1–D3). Requirem
 ## S2b results (2026-11-14)
 - Verified on Kaggle (2×T4, Python 3.13.16): install, model load, a real tau2 episode against the DeepSeek user simulator, eval record, ledger. Secrets are available only in UI-triggered runs, not CLI-pushed versions.
 - B0 (strict parser) aborted on turn 1: valid call format, but hallucinated tool results. Led to D7. Throughput ~12 output tokens/s; per-episode time is an extrapolation until measured.
+
+### B0 under D7 (Kaggle 2×T4, dev tasks 75/91/34, 1 trial each, 2026-11-14)
+| Task | Reward | Ended by | Behaviour |
+|---|---|---|---|
+| 34 | 0 | user_stop (7 steps) | no tool call; repeated the same generic reply 4 times |
+| 75 | 0 | too_many_errors (11 steps) | invented arguments (`#W0000000`, `sara_doe_496`); 10 "not found" errors |
+| 91 | 0 | too_many_errors (11 steps) | placeholder arguments (`your_user_id`); repeated call (loop flag) |
+- 0 parse failures, 0 aborts under D7. Spend $0.0005 (user simulator only).
+- ~7.5 s per generation step at short context (30–50K input tokens over 7–11 steps). Full-length episode times are an extrapolation until S6.
+- n=3 with 1 trial: a qualitative finding, not a pass rate.
