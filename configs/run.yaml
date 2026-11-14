@@ -24,6 +24,10 @@ teacher:                  # C2
       agent: llm_agent
       allow_reasoning: true
       llm_args: {extra_body: {thinking: {type: enabled}}}
+    thinking_rationale:   # hard-task rerun (approved 2026-11-14): thinking + one-sentence rationale prompt
+      agent: rationale_llm_agent
+      allow_reasoning: true
+      llm_args: {extra_body: {thinking: {type: enabled}}}
 
 student:                  # I1/D3.0; tokenizer+template files only are in data/student_tok
   model: CohereLabs/tiny-aya-en-thinker
