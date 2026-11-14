@@ -14,11 +14,14 @@ Modes:
 """
 
 import argparse
+import contextlib
 import json
 import math
 import os
 import random
+import sys
 import time
+import warnings
 from pathlib import Path
 
 import torch
@@ -72,22 +75,41 @@ def build_model(model_id: str, r: int, alpha: int, dropout: float):
     return model
 
 
-def memtest(model, rows: list[dict]) -> None:
+def sdpa_context(name: str):
+    """'efficient' forces PyTorch's memory-efficient attention kernel (no full T x T score matrix).
+    With the default dispatcher, the longest example fell back to the math kernel and asked for ~10 GiB.
+    If the kernel cannot handle our masks, PyTorch raises and warns with the reason instead of silently falling back."""
+    if name == "default":
+        return contextlib.nullcontext()
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+    return sdpa_kernel(SDPBackend.EFFICIENT_ATTENTION)
+
+
+def memtest(model, rows: list[dict], out: Path, backend: str) -> None:
+    warnings.simplefilter("always")           # kernel-selection warnings carry the reason for a fallback
+    out.mkdir(parents=True, exist_ok=True)
     model.train()   # HF only applies gradient checkpointing in training mode; eval mode would overstate memory
     ex = max(rows, key=lambda r: r["n_tokens"])
     ids = torch.tensor([ex["input_ids"]], device="cuda")
     lab = torch.tensor([ex["labels"]], device="cuda")
     torch.cuda.reset_peak_memory_stats()
     t0 = time.time()
-    with torch.autocast("cuda", dtype=torch.float16):
-        loss, n = selective_loss(model, ids, lab)
-    (loss / n).backward()
-    torch.cuda.synchronize()
+    try:
+        with sdpa_context(backend), torch.autocast("cuda", dtype=torch.float16):
+            loss, n = selective_loss(model, ids, lab)
+        (loss / n).backward()
+        torch.cuda.synchronize()
+    except (torch.OutOfMemoryError, RuntimeError) as e:
+        res = {"ok": False, "backend": backend, "memtest_tokens": ex["n_tokens"], "error": str(e)[:800],
+               "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2)}
+        print(json.dumps(res)); (out / "result.json").write_text(json.dumps(res))
+        sys.exit(1)
     dt = time.time() - t0
-    print(json.dumps({"memtest_tokens": ex["n_tokens"], "supervised": n, "loss": (loss / n).item(),
-                      "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2),
-                      "gpu_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2),
-                      "seconds": round(dt, 1), "tokens_per_s": round(ex["n_tokens"] / dt)}))
+    res = {"ok": True, "backend": backend, "memtest_tokens": ex["n_tokens"], "supervised": n,
+           "loss": (loss / n).item(), "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2),
+           "gpu_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2),
+           "seconds": round(dt, 1), "tokens_per_s": round(ex["n_tokens"] / dt)}
+    print(json.dumps(res)); (out / "result.json").write_text(json.dumps(res))
     model.zero_grad(set_to_none=True)
 
 
@@ -166,6 +188,7 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     ap.add_argument("--model", default="CohereLabs/tiny-aya-en-thinker")
     ap.add_argument("--memtest", action="store_true")
+    ap.add_argument("--sdpa", choices=["efficient", "default"], default="efficient")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--max-steps", type=int, default=None)
@@ -184,9 +207,10 @@ def main() -> None:
     print(f"{len(rows)} examples; {sum(r['n_tokens'] for r in rows)} tokens; args={vars(args)}")
     model = build_model(args.model, args.r, args.alpha, args.dropout)
     if args.memtest:
-        memtest(model, rows)
+        memtest(model, rows, Path(args.out), args.sdpa)
     else:
-        train(model, rows, args)
+        with sdpa_context(args.sdpa):
+            train(model, rows, args)
 
 
 if __name__ == "__main__":
