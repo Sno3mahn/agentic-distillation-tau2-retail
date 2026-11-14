@@ -15,6 +15,7 @@ Modes:
 
 import argparse
 import contextlib
+import gc
 import json
 import math
 import os
@@ -36,7 +37,7 @@ def causal_lm(model):
     return model.get_base_model() if hasattr(model, "get_base_model") else model
 
 
-def selective_loss(model, input_ids: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, int]:
+def selective_loss(model, input_ids: torch.Tensor, labels: torch.Tensor, chunk: int = 256) -> tuple[torch.Tensor, int]:
     """Summed next-token cross-entropy over supervised positions, and their count.
 
     Same maths as HF's loss (shift by one, ignore -100, Cohere's logit_scale) but lm_head is applied
@@ -47,9 +48,16 @@ def selective_loss(model, input_ids: torch.Tensor, labels: torch.Tensor) -> tupl
     hidden = lm.model(input_ids=input_ids).last_hidden_state          # (1, T, H)
     target = labels[:, 1:]
     keep = target != IGNORE
-    h = hidden[:, :-1][keep]                                          # (n, H)
-    logits = lm.lm_head(h).float() * getattr(lm, "logit_scale", 1.0)
-    return F.cross_entropy(logits, target[keep], reduction="sum"), int(keep.sum())
+    h, tgt = hidden[:, :-1][keep], target[keep]                       # (n, H), (n,)
+    scale = getattr(lm, "logit_scale", 1.0)
+
+    def ce(hh, tt):                     # logits for <= chunk positions; recomputed in backward, never stored
+        return F.cross_entropy(lm.lm_head(hh).float() * scale, tt, reduction="sum")
+
+    from torch.utils.checkpoint import checkpoint
+    total = sum(checkpoint(ce, h[i:i + chunk], tgt[i:i + chunk], use_reentrant=False)
+                for i in range(0, h.shape[0], chunk))
+    return total, int(keep.sum())
 
 
 def load_data(path: str, limit: int | None) -> list[dict]:
@@ -102,27 +110,39 @@ def memtest(model, rows: list[dict], out: Path, backend: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
     model.train()   # HF only applies gradient checkpointing in training mode; eval mode would overstate memory
     ex = max(rows, key=lambda r: r["n_tokens"])
-    ids = torch.tensor([ex["input_ids"]], device="cuda")
-    lab = torch.tensor([ex["labels"]], device="cuda")
-    torch.cuda.reset_peak_memory_stats()
-    t0 = time.time()
-    try:
-        with sdpa_context(backend), torch.autocast("cuda", dtype=torch.float16):
-            loss, n = selective_loss(model, ids, lab)
-        (loss / n).backward()
-        torch.cuda.synchronize()
-    except (torch.OutOfMemoryError, RuntimeError) as e:
-        res = {"ok": False, "backend": backend, "memtest_tokens": ex["n_tokens"], "error": str(e)[:800],
-               "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2)}
-        print(json.dumps(res)); (out / "result.json").write_text(json.dumps(res))
-        sys.exit(1)
-    dt = time.time() - t0
-    res = {"ok": True, "backend": backend, "memtest_tokens": ex["n_tokens"], "supervised": n,
-           "loss": (loss / n).item(), "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2),
-           "gpu_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2),
-           "seconds": round(dt, 1), "tokens_per_s": round(ex["n_tokens"] / dt)}
+
+    def attempt(T):
+        ids = torch.tensor([ex["input_ids"][:T]], device="cuda")
+        lab = torch.tensor([ex["labels"][:T]], device="cuda")
+        torch.cuda.reset_peak_memory_stats()
+        t0, err = time.time(), None
+        try:
+            with sdpa_context(backend), torch.autocast("cuda", dtype=torch.float16):
+                loss, n = selective_loss(model, ids, lab)
+            (loss / n).backward()
+            torch.cuda.synchronize()
+        except (torch.OutOfMemoryError, RuntimeError) as e:
+            err = str(e)[:600]
+        dt = time.time() - t0
+        r = {"tokens": T, "ok": err is None, "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2)}
+        r.update({"error": err} if err else {"seconds": round(dt, 1), "tokens_per_s": round(T / dt)})
+        print(json.dumps(r), flush=True)
+        model.zero_grad(set_to_none=True)
+        loss = None
+        gc.collect(); torch.cuda.empty_cache()
+        return r
+
+    tries = [attempt(ex["n_tokens"])]
+    if not tries[0]["ok"]:
+        tries += [attempt(T) for T in (11500, 11000, 10000) if T < ex["n_tokens"]]
+    fits = [t["tokens"] for t in tries if t["ok"]]
+    res = {"ok": tries[0]["ok"], "backend": backend, "longest": ex["n_tokens"], "max_fit": max(fits) if fits else 0,
+           "tokens_per_s": next((t["tokens_per_s"] for t in tries if t["ok"]), None),
+           "peak_mem_gb": max(t["peak_mem_gb"] for t in tries), "tries": tries,
+           "gpu_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2)}
     print(json.dumps(res)); (out / "result.json").write_text(json.dumps(res))
-    model.zero_grad(set_to_none=True)
+    if not fits:
+        sys.exit(1)
 
 
 def train(model, rows, args) -> None:
@@ -202,6 +222,7 @@ def main() -> None:
     ap.add_argument("--memtest", action="store_true")
     ap.add_argument("--sdpa", choices=["efficient", "default"], default="efficient")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--max-tokens", type=int, default=None, help="drop (never truncate) longer examples")
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--max-steps", type=int, default=None)
     ap.add_argument("--lr", type=float, default=1e-4)
@@ -217,7 +238,12 @@ def main() -> None:
     torch.manual_seed(args.seed)
     if args.sdpa == "efficient":
         disable_sdpa_gqa()
-    rows = load_data(args.data, args.limit)
+    rows = load_data(args.data, None)
+    if args.max_tokens:
+        before = len(rows)
+        rows = [r for r in rows if r["n_tokens"] <= args.max_tokens]
+        print(f"--max-tokens {args.max_tokens}: dropped {before - len(rows)} of {before} examples")
+    rows = rows[:args.limit] if args.limit else rows
     print(f"{len(rows)} examples; {sum(r['n_tokens'] for r in rows)} tokens; args={vars(args)}")
     model = build_model(args.model, args.r, args.alpha, args.dropout)
     if args.memtest:

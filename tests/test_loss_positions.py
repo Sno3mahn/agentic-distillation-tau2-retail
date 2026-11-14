@@ -26,24 +26,25 @@ def _batch(T=40, seed=1):
     return ids, labels
 
 
-@pytest.mark.parametrize("scale", [1.0, 0.5])
-def test_matches_hf_loss(scale):
+@pytest.mark.parametrize("scale,chunk", [(1.0, 256), (0.5, 256), (0.5, 4)])
+def test_matches_hf_loss(scale, chunk):
     model = _tiny(scale)
     ids, labels = _batch()
     with torch.no_grad():
         ref = model(input_ids=ids, labels=labels).loss
-        s, n = selective_loss(model, ids, labels)
+        s, n = selective_loss(model, ids, labels, chunk=chunk)
     assert n == int((labels[:, 1:] != IGNORE).sum())
     torch.testing.assert_close(s / n, ref, rtol=1e-5, atol=1e-6)
 
 
-def test_gradients_match():
+@pytest.mark.parametrize("chunk", [256, 4])
+def test_gradients_match(chunk):
     model = _tiny()
     ids, labels = _batch(seed=2)
     model(input_ids=ids, labels=labels).loss.backward()
     ref = [p.grad.clone() for p in model.parameters()]
     model.zero_grad()
-    s, n = selective_loss(model, ids, labels)
+    s, n = selective_loss(model, ids, labels, chunk=chunk)
     (s / n).backward()
     for a, b in zip(ref, [p.grad for p in model.parameters()]):
         torch.testing.assert_close(a, b, rtol=1e-4, atol=1e-6)
