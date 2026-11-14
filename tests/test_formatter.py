@@ -94,3 +94,13 @@ def test_prefix_property_all_turns(tok, retail):
             assert full[: len(pre)] == pre, (path, i)
             checked += 1
     assert checked > 30
+
+
+def test_truncate_at_tool_result():
+    from agentic_distill.formatter import truncate_at_tool_result
+    call = '<tool_call>{"name":"a","arguments":{"i":1}}</tool_call>'
+    hallucinated = f'<|START_RESPONSE|>Checking.\n{call}\n<tool_result name="a">{{}}</tool_result>\n{call.replace("1", "2")}'
+    out = parse(truncate_at_tool_result(hallucinated))
+    assert out == Parsed("Checking.", [{"name": "a", "arguments": {"i": 1}}])
+    clean = f"<|START_RESPONSE|>{call}<|END_RESPONSE|>"
+    assert truncate_at_tool_result(clean) == clean

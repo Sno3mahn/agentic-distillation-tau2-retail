@@ -93,3 +93,7 @@ _Stage 5, approved 2026-11-13. Decisions are in DECISIONS.md (D1–D3). Requirem
 - Fixed system prefix: 4,632 tokens (6.7 KB policy, **16** tool schemas; earlier docs said 17, which was not verified).
 - Rendered teacher episodes: median ~9.5K tokens, max 10,354; none near the 32K limit.
 - Still untested: whether the real model can follow the dialect (S2b), and the loss masks (S4).
+
+## S2b results (2026-11-14)
+- Verified on Kaggle (2×T4, Python 3.13.16): install, model load, a real tau2 episode against the DeepSeek user simulator, eval record, ledger. Secrets are available only in UI-triggered runs, not CLI-pushed versions.
+- B0 (strict parser) aborted on turn 1: valid call format, but hallucinated tool results. Led to D7. Throughput ~12 output tokens/s; per-episode time is an extrapolation until measured.

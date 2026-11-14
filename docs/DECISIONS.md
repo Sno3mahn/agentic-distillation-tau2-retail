@@ -90,6 +90,12 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 **Alternative considered:** native history with one training example per assistant turn. Rejected: roughly 10× the sequences of 5–10K tokens on a T4.
 **Cost:** history is non-native for both B0 and S2 (same for both, so the comparison stays fair). The effect on B0 is unmeasured. **Status:** decided.
 
+## D7 — Stop at the first tool result (2026-11-14, user-approved after the S2b B0 run)
+**Decision:** at inference, generation stops when the model starts a `<tool_result`; the text is cut there and the response block closed. Applied identically to B0 and S2.
+**Evidence:** B0's first Kaggle run (task 75, 2026-11-14) wrote valid `<tool_call>` JSON but then hallucinated its own `<tool_result>` blocks and further calls with placeholder arguments (`your_user_id`); the strict parser rejected both attempts and the episode aborted on turn 1 (9.8K tokens in, 563 out, 45 s).
+**Reason:** otherwise B0's score measures a formatting failure, not capability. The fine-tuned model learns to stop after its calls, so S2 is unaffected.
+**Kept as evidence:** the pre-D7 run is cited in the write-up as B0 hallucinating tool results. **Status:** decided.
+
 ## Open, for stage 5 (design). Resolved by D3 on 2026-11-13
 - Thinking policy: no-think, short thoughts, or distilled DeepSeek thinking.
 - The text format for tool calls and tool results, and the loss masks. No Aya template has a tool role (R4).

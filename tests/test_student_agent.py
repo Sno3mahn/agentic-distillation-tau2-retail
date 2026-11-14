@@ -79,3 +79,12 @@ def test_tool_result_round_trip(parts):
     m2, s = a.generate_next_message(tm, s)
     assert '<tool_result name="get_order_details">{"status":"pending"}</tool_result>' in gen.prompts[1]
     assert m2.content == "Done."
+
+
+def test_hallucinated_tool_result_is_cut_not_aborted(parts):
+    out = ('<|START_RESPONSE|><tool_call>{"name":"get_user_details","arguments":{"user_id":"x"}}</tool_call>\n'
+           '<tool_result name="get_user_details">{"fake":1}</tool_result>\n'
+           '<tool_call>{"name":"cancel_pending_order","arguments":{"order_id":"y"}}</tool_call>')
+    a, _ = _agent(parts, out)
+    m, _ = a.generate_next_message(_hello(), a.get_init_state([]))
+    assert [c.name for c in m.tool_calls] == ["get_user_details"] and not m.raw_data["aborted"]

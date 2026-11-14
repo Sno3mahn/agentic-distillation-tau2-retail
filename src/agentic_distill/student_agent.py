@@ -16,7 +16,7 @@ from tau2.agent.llm_agent import LLMAgentState
 from tau2.data_model.message import AssistantMessage, Message, MultiToolMessage, ToolCall
 from tau2.registry import registry
 
-from agentic_distill.formatter import Formatter, ParseError, from_tau2, parse
+from agentic_distill.formatter import Formatter, ParseError, from_tau2, parse, truncate_at_tool_result
 
 ABORT = "###ABORT###"
 _SPECIAL = re.compile(r"<\|[A-Z_]+\|>|<[A-Z_]+_TOKEN>")
@@ -52,7 +52,7 @@ class StudentAgent(HalfDuplexAgent[LLMAgentState]):
         stats["wall_s"] += time.perf_counter() - t0
         stats["n_in"] += res.n_in
         stats["n_out"] += res.n_out
-        out = parse(res.text)
+        out = parse(truncate_at_tool_result(res.text))
         if isinstance(out, ParseError):
             stats["invalid_attempts"].append({"reason": out.reason, "raw": res.text[:2000]})
             return out

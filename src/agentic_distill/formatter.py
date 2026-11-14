@@ -110,6 +110,15 @@ class Formatter:
         return text + GEN_PROMPT if add_generation_prompt else text
 
 
+def truncate_at_tool_result(text: str) -> str:
+    """D7: the model must stop after its calls. If it starts writing a <tool_result>, cut there and close
+    the response block, so a hallucinated continuation is dropped instead of failing the whole turn."""
+    i = text.find("<tool_result")
+    if i < 0:
+        return text
+    return text[:i].rstrip() + ER
+
+
 def parse(completion: str) -> Parsed | ParseError:
     """Parse the model's raw completion (the text generated after GEN_PROMPT)."""
     s = completion.strip()

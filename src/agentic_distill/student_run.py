@@ -43,7 +43,8 @@ def make_hf_generate(model_id: str, tok, gen_cfg: dict, adapter: str | None = No
         ids = tok(prompt, add_special_tokens=False, return_tensors="pt").input_ids.to("cuda")
         with torch.no_grad():
             out = model.generate(ids, max_new_tokens=gen_cfg["max_new_tokens"], do_sample=gen_cfg["do_sample"],
-                                 eos_token_id=stop_ids, pad_token_id=tok.pad_token_id)
+                                 eos_token_id=stop_ids, pad_token_id=tok.pad_token_id,
+                                 stop_strings=["<tool_result"], tokenizer=tok)   # D7: saves tokens; agent also truncates
         new = out[0, ids.shape[1]:]
         return GenResult(tok.decode(new, skip_special_tokens=False), int(ids.shape[1]), int(len(new)))
     return generate
