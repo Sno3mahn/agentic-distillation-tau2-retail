@@ -22,8 +22,9 @@ def main() -> None:
     print(f"fixed system prefix: {n(f.head(pol, tools))} tokens (policy {len(pol)} chars, {len(tools)} tools)")
     by_variant = defaultdict(list)
     for path in sorted(glob.glob(str(REPO_ROOT / cfg["paths"]["raw"] / "*/task*_trial*.json"))):
-        run = path.split("/")[-2]                      # <slice>_<variant>_<timestamp>; slice may contain "_"
-        variant = run.split("_")[-2] if run.split("_")[-2] in cfg["teacher"]["variants"] else "smoke-base"
+        run = path.split("/")[-2]                      # variant is one underscore-separated part of the run name
+        variant = next((p for p in run.split("_") if p in cfg["teacher"]["variants"]), "other")
+        variant += "-pilot10" if "pilot10" in run else ""
         chat = from_tau2(json.load(open(path))["messages"])
         by_variant[variant].append(n(f.render(pol, tools, chat)))
     limit = cfg["student"]["max_len"]
