@@ -85,6 +85,18 @@ def sdpa_context(name: str):
     return sdpa_kernel(SDPBackend.EFFICIENT_ATTENTION)
 
 
+def disable_sdpa_gqa() -> None:
+    """Make transformers expand K/V to all query heads (repeat_kv) instead of passing enable_gqa=True.
+
+    PyTorch's memory-efficient/flash kernels reject enable_gqa and fall back to the math kernel, which builds
+    the full T x T score matrix (~10 GiB at 12.9K tokens). Depends on transformers 5.23's sdpa_attention module;
+    fails loudly if that function is gone.
+    """
+    import transformers.integrations.sdpa_attention as sa
+    assert hasattr(sa, "use_gqa_in_sdpa"), "transformers changed: re-check the SDPA GQA path"
+    sa.use_gqa_in_sdpa = lambda attention_mask, key, value: False
+
+
 def memtest(model, rows: list[dict], out: Path, backend: str) -> None:
     warnings.simplefilter("always")           # kernel-selection warnings carry the reason for a fallback
     out.mkdir(parents=True, exist_ok=True)
@@ -203,6 +215,8 @@ def main() -> None:
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args()
     torch.manual_seed(args.seed)
+    if args.sdpa == "efficient":
+        disable_sdpa_gqa()
     rows = load_data(args.data, args.limit)
     print(f"{len(rows)} examples; {sum(r['n_tokens'] for r in rows)} tokens; args={vars(args)}")
     model = build_model(args.model, args.r, args.alpha, args.dropout)

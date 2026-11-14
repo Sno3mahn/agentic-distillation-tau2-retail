@@ -47,3 +47,25 @@ def test_gradients_match():
     (s / n).backward()
     for a, b in zip(ref, [p.grad for p in model.parameters()]):
         torch.testing.assert_close(a, b, rtol=1e-4, atol=1e-6)
+
+
+def test_disabling_sdpa_gqa_keeps_outputs():
+    """repeat_kv path (patched) and enable_gqa path (default) must give the same hidden states."""
+    import transformers.integrations.sdpa_attention as sa
+    from agentic_distill.train_lora import disable_sdpa_gqa
+    model = _tiny()
+    model.config._attn_implementation = "sdpa"
+    ids, _ = _batch()
+    orig = sa.use_gqa_in_sdpa
+    calls = []
+    sa.use_gqa_in_sdpa = lambda m, k, v: (calls.append(1), orig(m, k, v))[1]
+    try:
+        with torch.no_grad():
+            ref = model.model(input_ids=ids).last_hidden_state
+        assert any(calls), "default path never consulted use_gqa_in_sdpa"
+        disable_sdpa_gqa()
+        with torch.no_grad():
+            patched = model.model(input_ids=ids).last_hidden_state
+    finally:
+        sa.use_gqa_in_sdpa = orig
+    torch.testing.assert_close(patched, ref, rtol=1e-5, atol=1e-6)
