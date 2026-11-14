@@ -11,6 +11,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest"]
 student = ["transformers", "huggingface_hub"]
+train = ["torch", "transformers", "peft", "safetensors"]   # Kaggle only
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
