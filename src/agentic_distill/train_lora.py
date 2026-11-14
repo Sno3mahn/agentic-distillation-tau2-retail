@@ -73,6 +73,7 @@ def build_model(model_id: str, r: int, alpha: int, dropout: float):
 
 
 def memtest(model, rows: list[dict]) -> None:
+    model.train()   # HF only applies gradient checkpointing in training mode; eval mode would overstate memory
     ex = max(rows, key=lambda r: r["n_tokens"])
     ids = torch.tensor([ex["input_ids"]], device="cuda")
     lab = torch.tensor([ex["labels"]], device="cuda")
