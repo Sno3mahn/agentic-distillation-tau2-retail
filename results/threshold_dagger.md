@@ -29,3 +29,5 @@ This is a **post-hoc, exploratory** experiment. The main, pre-registered result 
 - One DAgger round, about 100-200 new states.
 
 ## Final checkpoint hash (appended after training, before any test episode)
+- `dagger_r1_s20261117/epoch2/adapter_model.safetensors` sha256 `66eef03259d175dc13d220d0586f82356d166a0b627c3f697361d4b67f207dc1`
+  (recorded 2026-11-16 02:01 IST, after training and before any DAgger dev or test episode).
