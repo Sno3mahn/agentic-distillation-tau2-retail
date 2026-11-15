@@ -139,7 +139,8 @@ def main() -> None:
         "max_steps": ep["max_steps"], "max_errors": ep["max_errors"], "seed": ep["base_seed"],
         "communicate_scoring": scoring})
 
-    run_name = f"{args.slice}_{args.label}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+    # pid keeps names unique when two processes (one per GPU) start in the same second with the same label
+    run_name = f"{args.slice}_{args.label}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_p{os.getpid()}"
     out_dir = out_root / cfg["paths"]["raw"] / run_name
     out_dir.mkdir(parents=True, exist_ok=False)
     model_by_role = {"user_sim": cfg["user_sim"]["model"]}
@@ -178,7 +179,7 @@ def main() -> None:
             print(f"task={task.id} trial={trial} reward={rec['reward']:.0f} term={rec['terminated_by']} "
                   f"steps={rec['n_steps']} calls={rec['n_tool_calls']} invalid={rec['n_invalid_calls']} "
                   f"tok in/out={rec['tokens']['in']}/{rec['tokens']['out']} gen_wall={rec['gen_wall_s']:.0f}s "
-                  f"cost=${rec['cost_usd']:.4f}")
+                  f"cost=${rec['cost_usd']:.4f}", flush=True)
     print(f"slice {args.slice} total=${ledger.total(slice=args.slice):.4f}; records in {out_dir}")
 
 
