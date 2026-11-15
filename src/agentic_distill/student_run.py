@@ -86,7 +86,9 @@ def eval_record(sim, sc: dict, label: str, ctx: dict, cost_usd: float) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tasks", nargs="+", required=True, help="dev task IDs")
+    ap.add_argument("--tasks", nargs="+", required=True, help="task IDs of the chosen split, or 'all'")
+    ap.add_argument("--split", choices=["dev", "test"], default="dev",
+                    help="test is locked until results/threshold.md exists (C9)")
     ap.add_argument("--trials", type=int, default=1)
     ap.add_argument("--slice", required=True)
     ap.add_argument("--label", default="b0", help="model label in records, e.g. b0 or s2-ckpt1")
@@ -105,9 +107,14 @@ def main() -> None:
         sys.exit("DeepSeek peak hours (2x price): refusing to run. Wait or pass --allow-peak.")
 
     split = load_split(REPO_ROOT / cfg["split"]["path"])
-    bad = [t for t in args.tasks if t not in set(split["dev_ids"])]
+    if args.split == "test" and not (REPO_ROOT / "results" / "threshold.md").exists():
+        sys.exit("test split is locked: results/threshold.md must exist first (C9)")
+    ids = split[f"{args.split}_ids"]
+    if args.tasks == ["all"]:
+        args.tasks = list(ids)
+    bad = [t for t in args.tasks if t not in set(ids)]
     if bad:
-        sys.exit(f"student_run is dev-only for now; not dev IDs: {bad}")
+        sys.exit(f"not {args.split} task IDs: {bad}")
 
     out_root = REPO_ROOT if args.out_root is None else __import__("pathlib").Path(args.out_root)
     ledger = Ledger(out_root / cfg["paths"]["ledger"], cfg["budget"]["slices_usd"][args.slice])
@@ -142,10 +149,26 @@ def main() -> None:
                 print(f"STOP: budget slice {args.slice} exhausted")
                 return
             seed = ep["base_seed"] + trial
-            sim = run_single_task(config, task, seed=seed, evaluation_type=EvaluationType.ENV)
-            sim.trial = trial
             ctx = {"slice": args.slice, "run": run_name, "task_id": task.id, "trial": trial, "seed": seed,
-                   "user_sim_model": cfg["user_sim"]["model"], "split": "dev"}
+                   "user_sim_model": cfg["user_sim"]["model"], "split": args.split}
+            try:
+                sim = run_single_task(config, task, seed=seed, evaluation_type=EvaluationType.ENV)
+            except Exception as e:            # e.g. CUDA OOM on a very long episode: a failure, but the run goes on
+                import gc
+                gc.collect()
+                if args.backend == "hf":
+                    import torch
+                    torch.cuda.empty_cache()
+                rec = {**ctx, "model": args.label, "reward": 0.0, "reward_if_abort_ignored": 0.0, "db_reward": 0.0,
+                       "communicate_reward": 0.0, "n_steps": 0, "n_tool_calls": 0, "n_invalid_calls": 0,
+                       "n_parse_invalid": 0, "n_env_tool_errors": 0, "terminated_by": "crash", "loop_detected": False,
+                       "tokens": {"in": 0, "out": 0}, "gen_wall_s": 0, "wall_s": 0, "cost_usd": 0.0,
+                       "error": f"{type(e).__name__}: {str(e)[:300]}"}
+                with open(out_dir / "episodes.jsonl", "a") as f:
+                    f.write(json.dumps(rec) + "\n")
+                print(f"task={task.id} trial={trial} reward=0 term=crash {rec['error']}", flush=True)
+                continue
+            sim.trial = trial
             recs = episode_records(sim, model_by_role, cfg["prices"], ctx, skip_roles=("agent",))
             ledger.append(recs)
             rec = eval_record(sim, score(sim, task, scoring), args.label, ctx, sum(r["cost_usd"] for r in recs))

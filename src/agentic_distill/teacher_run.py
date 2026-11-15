@@ -41,7 +41,9 @@ def score(sim, task, scoring: CommunicateScoring) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tasks", nargs="+", required=True, help="train task IDs")
+    ap.add_argument("--tasks", nargs="+", required=True, help="task IDs of the chosen split, or 'all'")
+    ap.add_argument("--split", choices=["train", "test"], default="train",
+                    help="test (teacher baseline) is locked until results/threshold.md exists (C9)")
     ap.add_argument("--trials", type=int, default=1)
     ap.add_argument("--slice", required=True, help="budget slice name from configs/run.yaml")
     ap.add_argument("--run-name", default=None)
@@ -65,9 +67,17 @@ def main() -> None:
                  "Wait for off-peak or pass --allow-peak.")
 
     split = load_split(REPO_ROOT / cfg["split"]["path"])
-    bad = [t for t in args.tasks if t not in set(split["train_ids"])]
+    if args.split == "test":
+        if not (REPO_ROOT / "results" / "threshold.md").exists():
+            sys.exit("test split is locked: results/threshold.md must exist first (C9)")
+        if args.slice == "s4_teacher_data":
+            sys.exit("test episodes must never be charged to the data-generation slice; use eval_teacher")
+    ids = split[f"{args.split}_ids"]
+    if args.tasks == ["all"]:
+        args.tasks = list(ids)
+    bad = [t for t in args.tasks if t not in set(ids)]
     if bad:
-        sys.exit(f"refusing non-train task IDs (contamination guard): {bad}")
+        sys.exit(f"refusing task IDs outside the {args.split} split (contamination guard): {bad}")
 
     slice_budget = cfg["budget"]["slices_usd"][args.slice]
     ledger = Ledger(REPO_ROOT / cfg["paths"]["ledger"], slice_budget)
@@ -102,7 +112,8 @@ def main() -> None:
             seed = ep["base_seed"] + trial
             sim = run_single_task(config, task, seed=seed, evaluation_type=EvaluationType.ENV)
             sim.trial = trial
-            ctx = {"slice": args.slice, "variant": variant, "run": run_name, "task_id": task.id, "trial": trial}
+            ctx = {"slice": args.slice, "variant": variant, "run": run_name, "task_id": task.id, "trial": trial,
+                   "split": args.split}
             recs = episode_records(sim, model_by_role, cfg["prices"], ctx)
             ledger.append(recs)
             sc = score(sim, task, scoring)

@@ -43,6 +43,7 @@ def metrics_of(groups: list[list[dict]]) -> dict:
     out["steps"] = sum(r["n_steps"] for r in eps) / len(eps)
     out["loop_abort_rate"] = sum(r["terminated_by"] in ("abort", "max_steps") or r.get("loop_detected", False)
                                  for r in eps) / len(eps)
+    out["crash_rate"] = sum(r["terminated_by"] == "crash" for r in eps) / len(eps)   # e.g. GPU OOM; counted as failures
     wins = sum(r["reward"] > 0.5 for r in eps)
     out["cost_per_success"] = sum(r["cost_usd"] for r in eps) / wins if wins else float("nan")
     return out
@@ -114,12 +115,12 @@ def main() -> None:
         name, pattern = spec.split("=", 1)
         sets[name] = group_by_task([r for d in sorted(glob.glob(pattern)) for r in load_records(d)])
     names = list(sets)
-    keys = ["pass^1", "pass^2", "pass^3", "valid_call_rate", "steps", "loop_abort_rate", "cost_per_success"]
+    keys = ["pass^1", "pass^2", "pass^3", "valid_call_rate", "steps", "loop_abort_rate", "crash_rate", "cost_per_success"]
     print("| metric | " + " | ".join(names) + " |\n|---|" + "---|" * len(names))
     res = {n: bootstrap(sets[n]) for n in names}
     print("| tasks / episodes | " + " | ".join(f"{res[n][0]['n_tasks']} / {res[n][0]['n_episodes']}" for n in names) + " |")
     for k in keys:
-        print(f"| {k} | " + " | ".join(_fmt(res[n][0][k], res[n][1].get(k), pct=k.startswith(("pass", "valid", "loop")))
+        print(f"| {k} | " + " | ".join(_fmt(res[n][0][k], res[n][1].get(k), pct=k.startswith(("pass", "valid", "loop", "crash")))
                                       for n in names) + " |")
     for n in names[1:]:
         point, cis = bootstrap(sets[n], other=sets[names[0]])
