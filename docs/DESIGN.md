@@ -1,5 +1,9 @@
 # Design — Agentic Distillation on τ²-bench retail
 
+> **As built (2026-11-16):** training uses a custom LoRA loop (`train_lora.py`: selective loss, fp16, gradient checkpointing),
+> not TRL's SFTTrainer, and inference uses HF `generate`, not vLLM (vLLM was not tried). Evaluation, splits and
+> formats are as designed. See EXPERIMENT_LOG E3-E6 and DECISIONS D9-D13.
+
 _Stage 5, approved 2026-11-13. Decisions are in DECISIONS.md (D1–D3). Requirement IDs (O/U/P/R/AC) refer to REQUIREMENTS.md._
 
 ## Summary

@@ -126,3 +126,8 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 
 ## D12 — Continued training is a separate, post-hoc experiment (2026-11-15, approved)
 **Decision:** S8's extra epochs (E6) are evaluated on dev only and reported as an exploratory result. They do not replace epoch3 as the pre-registered test result and are not run on test unless the user decides otherwise, in which case both results are reported. **Status:** decided.
+
+## D13 — DAgger round 1 design (2026-11-16, approved)
+**Decision:** one DAgger-lite round from epoch3: teacher labels at states the student reached (prefix = the student's own history with real tool results; label = the teacher's next turn), restricted to failed train episodes, up to the first error. Training continues epoch3 on the new examples plus a 25% replay sample of the original SFT set, so the short labels are not drowned out by token-weighted full-episode losses.
+**Alternatives:** teacher takes over from the error and finishes the episode (needs environment-state replay; more code); aggregate everything and retrain from scratch (≈ 4 GPU-hours, no time); more SFT epochs (E6: no gain).
+**Risks:** labels are not success-filtered; one round, ~50 states; post-hoc. Evaluation plan fixed in `results/threshold_dagger.md` before training. **Status:** decided; result pending.

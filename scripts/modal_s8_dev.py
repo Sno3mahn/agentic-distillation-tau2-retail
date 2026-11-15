@@ -1,4 +1,5 @@
 """S8 dev evaluation on Modal: the continued-training checkpoints on the first 8 dev tasks x 1 trial.
+Superseded by scripts/modal_student_eval.py; kept as the code that produced data/modal_out_s8dev.
 
 Same code path as the Kaggle S6/S8 notebooks (agentic_distill.student_run), one checkpoint per T4 container, in parallel.
 Prereqs (run by the user, values never printed):

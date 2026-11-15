@@ -1,4 +1,5 @@
 """S7b fallback on Modal: run named test tasks x 3 trials with the frozen epoch3 adapter (one T4 container per task).
+Superseded by scripts/modal_student_eval.py; kept as the code that produced the chunk 3-4 test records.
 
 Used for the "even" test-half chunks the Colab run did not finish (Colab quota ran out). Same code path and adapter
 hash check as notebooks/s7b_test_eval_colab.ipynb; the environment differs (see the versions each container prints).

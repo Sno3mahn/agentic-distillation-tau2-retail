@@ -1,5 +1,9 @@
 # Implementation Plan — vertical slices (approved 2026-11-13)
 
+> **As built (2026-11-16):** training uses a custom LoRA loop (`train_lora.py`: selective loss, fp16, gradient checkpointing),
+> not TRL's SFTTrainer, and inference uses HF `generate`, not vLLM (vLLM was not tried). Evaluation, splits and
+> formats are as designed. See EXPERIMENT_LOG E3-E6 and DECISIONS D9-D13.
+
 ## Context
 Stage 5 design was approved on 2026-11-13.
 - Distillation: behaviour cloning from a DeepSeek teacher (non-thinking, short visible thoughts) into Tiny Aya En-Thinker (32K, `/no_think`, LoRA).

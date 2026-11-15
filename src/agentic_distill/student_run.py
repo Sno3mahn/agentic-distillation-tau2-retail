@@ -1,7 +1,7 @@
 """C6/C7: run the student (B0 or fine-tuned) as the tau2 retail agent against the DeepSeek user simulator.
 
 Same reward as the teacher (D4). Writes one eval record per episode (design interface 5).
-Dev tasks only for now (test is reserved until threshold.md exists, C9).
+Splits: train (DAgger rollouts), dev, test (locked until results/threshold.md exists, C9).
 
     python -m agentic_distill.student_run --tasks 1 --trials 1 --slice s3_pilot --label b0
 """

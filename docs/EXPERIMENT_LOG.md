@@ -86,7 +86,7 @@ See DESIGN.md "S2b results" and "B0 under D7". Qualitative only (3 dev episodes,
 Paired epoch3 − epoch2: pass^1 +17 pts [−17, +58] (not significant). **epoch3 chosen** (higher point estimate, no aborts); see D9.
 **Limitations:** 12 episodes, 1 trial; the difference is within noise. The OOM cause on long episodes is not confirmed (hypothesis: KV cache plus prefill on 30K+-token contexts).
 
-## E5 — Test evaluation (2026-11-15, slice S7; in progress)
+## E5 — Test evaluation (2026-11-15/16, slice S7)
 Pre-registered in `results/threshold.md` (written 13:49 IST, before any student test episode): frozen epoch3 adapter (sha256 `88544be6…c85b1`), 40 test tasks × 3 trials, crashes and aborts score 0, bar = paired 95% task-bootstrap CI lower bound of (student − B0) pass^1 above 0.
 
 **Teacher (`base` variant, context only), 40 tasks × 3 trials:** pass^1 89% [83, 95], pass^3 72% [58, 85], valid-call rate 98%, 12.3 steps, cost per success $0.0023. Cost $0.25.
@@ -94,11 +94,28 @@ Pre-registered in `results/threshold.md` (written 13:49 IST, before any student 
 **Student, how the test set was run:** attempt 1 on Kaggle split the tasks over two GPUs; GPU 0 died on a run-name collision (fixed: pid suffix), so only the "odd" half (`test_ids[1::2]`, 20 tasks) ran. The "even" half runs on Colab (single T4, `notebooks/s7b_test_eval_colab.ipynb`, same code at commit 341ab2a, same adapter hash; library versions in `results/env_colab.json`). See D11.
 
 **Student, odd half (20 tasks × 3 = 60 episodes):** pass^1 42% [27, 57], pass^3 15% [0, 35]; valid-call rate 92%; 17.1 steps; loop/abort 8%; 1 crash (task 36, CUDA OOM at the first turn), 2 `error` terminations (tasks 39, 53), 1 `max_steps` (task 111). 10 of 20 tasks never passed. Same 20 tasks, teacher − student pass^1: 50 pts [35, 65].
-**Pending:** even half (Colab), B0 on all 40 tasks (Kaggle `agentic-distill-s7-b0-test-eval`), then the pooled paired comparison against B0 and a sensitivity check excluding crashes.
+**Even half:** chunks 0-2 (12 tasks) on Colab; Colab's quota ran out during chunk 3, so chunks 3-4 (8 tasks) ran on Modal T4 (`scripts/modal_s7b_missing.py`). Two Modal containers were preempted and restarted automatically; records are only returned on completion, so no partial or duplicate data.
+**B0 (Kaggle, all 40 tasks × 3):** pass^1 2.5% (3/120); 84 of 120 episodes ended in `error`, valid-call rate 7%: the base model almost never emits a usable tool call.
+
+**Final, pooled (`scripts/pool_test.py`; 120 unique episodes per model, integrity-checked):**
+
+| model | pass^1 | pass^3 | valid-call | loop/abort | crash |
+|---|---|---|---|---|---|
+| B0 | 2.5% [0, 7.5] | 2.5% | 7.3% | 30.8% | 0% |
+| student epoch3 | 40.0% [30, 50] | 10.0% [2.5, 20] | 88.7% | 10.0% | 2.5% |
+| teacher (base) | 89.2% [82.5, 95] | 72.5% [57.5, 85] | 97.7% | 0% | 0% |
+
+Paired student − B0 pass^1 **+37.5 pts [+25.8, +48.3]: the pre-registered bar is met.** Crashes excluded: +38.7 [+27.1, +50.0]. Teacher − student pass^1 +49.2 [+39.2, +59.2]; pass^3 +62.5.
+**Cost per success:** student ≈ $0.12 (9.6 T4-hours of generation at $0.59/h + $0.07 user-simulator API, 48 successes) vs teacher $0.0023. The student harness re-processes the full conversation every turn (median 132K input tokens per episode); this, not model size, dominates. Total API spend is undercounted by the local ledger (cloud ledgers are per-container); the provider dashboard is the reference.
 **Student cost per success ($0.0015)** counts only the user-simulator API calls, not GPU time; the GPU cost is added in the write-up.
 
 ## E6 — Continued training (2026-11-15, post-hoc, not pre-registered)
 **Question:** does more training beyond epoch3 help? Only for the write-up; the pre-registered test result stays epoch3 (D12).
 **Setup:** start from the epoch3 adapter (`--init-adapter`), 2 more epochs, lr 5e-5, seed 20261116, same data. Kaggle T4.
 **Results:** mean train loss 0.372 / 0.329 (cumulative epochs 4 / 5); 0 skipped steps. Checkpoints in `data/kaggle_out_s8/out/lora_ext/epoch{1,2}`.
-**Pending:** dev evaluation on the first 8 dev tasks × 1 trial (`agentic-distill-s8-dev-eval`), compared against epoch3 on the same 8 tasks (4/8 in E4). With 8 episodes this can only show a large change.
+**Dev (first 8 dev tasks × 1 trial, Modal T4, `scripts/modal_s8_dev.py`):** cumulative epoch 4: 3/8, epoch 5: 3/8, vs epoch3 4/8 on the same tasks (Kaggle). Invalid calls fell 19 → 11 → 8, but solved tasks did not rise. **No sign that more SFT on the same data helps**; not run on test (D12). Environment differs (Modal vs Kaggle).
+
+## E7 — DAgger round 1 (2026-11-16, post-hoc; plan fixed in results/threshold_dagger.md)
+**Rollouts:** epoch3 on the 60 train tasks × 2 trials, Modal T4 (`scripts/modal_student_eval.py`). 7 of 20 containers were lost to preemption ("Runner terminated"); 4 returned their tasks twice (deduplicated). Used: 78 episodes on 39 tasks, 30 successes; 48 failures.
+**Relabelling** (`dagger_relabel.py`): 54 states (the first error turn and earlier write calls of each failed episode); teacher (rationale variant) labels; 53 kept (1 over length), 20 identical to the student's own turn; 3 from task 59 dropped (gold ambiguity, E2) → **50 examples, 27 tasks**, median 75 loss tokens each. Cost $0.029.
+**Training:** epoch3 + 2 epochs on 50 DAgger examples + 12 replay examples (25%), lr 5e-5, Modal L4 (`scripts/modal_dagger_train.py`, D13). Results pending.
