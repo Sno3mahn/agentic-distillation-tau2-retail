@@ -30,6 +30,9 @@ from agentic_distill.teacher_run import score
 def make_hf_generate(model_id: str, tok, gen_cfg: dict, adapter: str | None = None):
     import torch
     from transformers import AutoModelForCausalLM
+
+    from agentic_distill.train_lora import disable_sdpa_gqa
+    disable_sdpa_gqa()   # same attention path as training; avoids the T x T math-kernel fallback on long prompts
     model = AutoModelForCausalLM.from_pretrained(
         model_id, torch_dtype=getattr(torch, gen_cfg["dtype"]), device_map="cuda",
         attn_implementation="sdpa", token=os.environ.get("HF_TOKEN"))
