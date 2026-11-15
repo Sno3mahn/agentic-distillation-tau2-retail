@@ -25,7 +25,7 @@ image = (
         "git clone -q https://github.com/sierra-research/tau2-bench /root/repo/third_party/tau2-bench",
         f"git -C /root/repo/third_party/tau2-bench checkout -q {TAU2_COMMIT}",
         "pip install -q -e /root/repo/third_party/tau2-bench audioop-lts pyyaml",
-        "pip install -q torch transformers peft accelerate safetensors",
+        "pip install -q torch==2.15.0 transformers==5.23.0 peft==0.21.3 accelerate==1.15.0 safetensors==0.8.0",  # = requirements-gpu.txt
         "pip uninstall -y -q torchao || true",
     )
     .add_local_file("/tmp/agentic_distill_src.zip", "/root/src.zip")
@@ -34,7 +34,8 @@ app = modal.App("agentic-distill-student-eval", image=image)
 vol = modal.Volume.from_name("agentic-distill-adapters", create_if_missing=True)
 
 
-@app.function(gpu="T4", timeout=6 * 3600, secrets=[modal.Secret.from_name("agentic-distill")], volumes={"/vol": vol})
+@app.function(gpu="T4", timeout=6 * 3600, secrets=[modal.Secret.from_name("agentic-distill")], volumes={"/vol": vol},
+              retries=modal.Retries(max_retries=2, initial_delay=5.0))   # preempted containers ("Runner terminated") are retried
 def run(job: dict) -> bytes:
     import hashlib, os, subprocess, sys
     subprocess.run(["unzip", "-q", "-o", "/root/src.zip", "-d", "/root/repo"], check=True)
@@ -46,6 +47,8 @@ def run(job: dict) -> bytes:
     tag = f"g{job['group']}"
     print(f"[{tag}] tasks={job['tasks']} adapter_sha256={h[:12] if ad else None} torch {torch.__version__} "
           f"transformers {transformers.__version__} peft {peft.__version__} {torch.cuda.get_device_name(0)}", flush=True)
+    import shutil
+    shutil.rmtree("/root/out", ignore_errors=True)   # a retried input may land on a used container
     env = {**os.environ, "PYTHONPATH": "src", "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
     cmd = [sys.executable, "-m", "agentic_distill.student_run", "--tasks", *job["tasks"], "--split", job["split"],
            "--trials", str(job["trials"]), "--slice", job["slice"], "--label", job["label"], "--out-root", "/root/out"]

@@ -121,12 +121,18 @@ def main() -> None:
     ledger = Ledger(REPO_ROOT / cfg["paths"]["ledger"], cfg["budget"]["slices_usd"][args.slice])
 
     states = []                                              # (run dir, meta, sim messages, turn index)
-    n_eps = n_failed = 0
+    n_eps = n_failed = n_dup = 0
+    seen = set()     # (task, trial): a retried/preempted container can return the same episode twice; keep the first
     for pattern in args.runs:
         for d in sorted(glob.glob(str(REPO_ROOT / pattern)) or glob.glob(pattern)):
             for line in open(Path(d) / "episodes.jsonl"):
                 meta = json.loads(line)
                 assert str(meta["task_id"]) in train, f"non-train task {meta['task_id']} in {d}"
+                key = (str(meta["task_id"]), meta["trial"])
+                if key in seen:
+                    n_dup += 1
+                    continue
+                seen.add(key)
                 n_eps += 1
                 if meta["reward"] >= 0.5 or meta["terminated_by"] == "crash":
                     continue
@@ -134,7 +140,8 @@ def main() -> None:
                 sim = json.load(open(Path(d) / f"task{meta['task_id']}_trial{meta['trial']}.json"))
                 for i in select_states(sim["messages"], args.per_episode):
                     states.append((d, meta, sim, i))
-    print(f"episodes={n_eps} failed={n_failed} states selected={len(states)}", flush=True)
+    print(f"episodes={n_eps} (duplicates skipped={n_dup}) tasks={len({k for k, _ in seen})} failed={n_failed} "
+          f"states selected={len(states)}", flush=True)
     if args.dry_run:
         return
 
@@ -168,7 +175,7 @@ def main() -> None:
             if n > args.max_tokens:
                 dropped_len += 1
                 continue
-            student = from_tau2([sim["messages"][i]])[0] if from_tau2([sim["messages"][i]]) else {}
+            student = from_tau2([sim["messages"][i]])[0]
             same = [(c["name"], c["arguments"]) for c in student.get("tool_calls", [])] == \
                    [(c["name"], c["arguments"]) for c in calls] and bool(calls)
             agree += same

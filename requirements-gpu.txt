@@ -1,0 +1,8 @@
+# GPU-side pins (student inference and LoRA training). These are the versions the Modal runs used
+# (torch 2.15.0, transformers 5.23.0, peft 0.21.3); the Colab run used torch 2.14.1 with the same
+# transformers/peft (results/env_colab.json). disable_sdpa_gqa() patches a transformers 5.23 internal.
+torch==2.15.0
+transformers==5.23.0
+peft==0.21.3
+accelerate==1.15.0
+safetensors==0.8.0

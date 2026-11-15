@@ -26,7 +26,7 @@ image = (
         "git clone -q https://github.com/sierra-research/tau2-bench /root/repo/third_party/tau2-bench",
         f"git -C /root/repo/third_party/tau2-bench checkout -q {TAU2_COMMIT}",
         "pip install -q -e /root/repo/third_party/tau2-bench audioop-lts pyyaml",
-        "pip install -q torch transformers peft accelerate safetensors",
+        "pip install -q torch==2.15.0 transformers==5.23.0 peft==0.21.3 accelerate==1.15.0 safetensors==0.8.0",  # = requirements-gpu.txt
         "pip uninstall -y -q torchao || true",
     )
     .add_local_file("/tmp/agentic_distill_src.zip", "/root/src.zip")
