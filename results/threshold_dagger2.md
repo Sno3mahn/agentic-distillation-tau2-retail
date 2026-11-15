@@ -34,3 +34,5 @@ reported, and the better-looking one is not selected after the fact:** the write
 - Environment confound with epoch3's pooled test records, as in round 1.
 
 ## Final checkpoint hash (appended after training, before any evaluation episode)
+- `dagger_r2_s20261117/epoch2/adapter_model.safetensors` sha256 `bf80cbfb9c15a4542806f53136109ac673ca6c25aea2663933596201dacf7017`
+  (recorded 2026-11-16 03:33 IST, after training and before any round-2 dev or test episode).
