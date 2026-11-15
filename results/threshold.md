@@ -28,6 +28,6 @@ pass^1 and pass^3 (with CIs), valid-call rate, steps per episode, loop/abort rat
 every failure category, and any run that crashed. If the bar is missed, the write-up says so.
 
 ## Known weaknesses in the protocol
-- 3 trials per task and one seed per trial: the user simulator is noisy (e.g. dev behaviour of task 59-like ambiguities).
+- 3 trials per task and one seed per trial: the DeepSeek user simulator is noisy (train task 59 showed it can state a fact the scenario never fixed).
 - Substring COMMUNICATE can pass a wrong statement of the required figure; no semantic audit was done.
 - Dev selection used 12 single-trial episodes per checkpoint.
