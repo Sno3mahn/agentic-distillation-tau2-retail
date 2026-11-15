@@ -65,8 +65,8 @@ def load_data(path: str, limit: int | None) -> list[dict]:
     return rows[:limit] if limit else rows
 
 
-def build_model(model_id: str, r: int, alpha: int, dropout: float):
-    from peft import LoraConfig, get_peft_model
+def build_model(model_id: str, r: int, alpha: int, dropout: float, init_adapter: str | None = None):
+    from peft import LoraConfig, PeftModel, get_peft_model
     from transformers import AutoModelForCausalLM
     model = AutoModelForCausalLM.from_pretrained(
         model_id, dtype=torch.float16, device_map={"": 0}, attn_implementation="sdpa",
@@ -74,12 +74,16 @@ def build_model(model_id: str, r: int, alpha: int, dropout: float):
     model.config.use_cache = False
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.enable_input_require_grads()
-    model = get_peft_model(model, LoraConfig(r=r, lora_alpha=alpha, lora_dropout=dropout,
-                                             target_modules=LORA_TARGETS, task_type="CAUSAL_LM"))
+    if init_adapter:      # continue training an existing adapter (new optimizer and schedule)
+        model = PeftModel.from_pretrained(model, init_adapter, is_trainable=True)
+    else:
+        model = get_peft_model(model, LoraConfig(r=r, lora_alpha=alpha, lora_dropout=dropout,
+                                                 target_modules=LORA_TARGETS, task_type="CAUSAL_LM"))
     for p in model.parameters():          # fp16 base frozen; trainable LoRA weights kept in fp32
         if p.requires_grad:
             p.data = p.data.float()
     model.print_trainable_parameters()
+    assert sum(p.numel() for p in model.parameters() if p.requires_grad) > 0, "adapter is frozen: nothing would train"
     return model
 
 
@@ -234,6 +238,7 @@ def main() -> None:
     ap.add_argument("--dropout", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=20261115)
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--init-adapter", default=None, help="start from this adapter dir (continued training)")
     args = ap.parse_args()
     torch.manual_seed(args.seed)
     if args.sdpa == "efficient":
@@ -245,7 +250,7 @@ def main() -> None:
         print(f"--max-tokens {args.max_tokens}: dropped {before - len(rows)} of {before} examples")
     rows = rows[:args.limit] if args.limit else rows
     print(f"{len(rows)} examples; {sum(r['n_tokens'] for r in rows)} tokens; args={vars(args)}")
-    model = build_model(args.model, args.r, args.alpha, args.dropout)
+    model = build_model(args.model, args.r, args.alpha, args.dropout, args.init_adapter)
     if args.memtest:
         memtest(model, rows, Path(args.out), args.sdpa)
     else:
