@@ -61,7 +61,7 @@ See DESIGN.md "S2b results" and "B0 under D7". Qualitative only (3 dev episodes,
 **Comparison with published numbers (context, not a benchmark):** a third-party leaderboard submission (PR #709, unverified, no stated thinking mode) reports V4.1-Flash retail pass^1 88.6%, pass^3 78.7% on all 114 tasks with the official reward and 4 trials. Ours is lower (82% / 65%) but differs in tasks (60 train), reward (substring, not the NL judge), prompt (rationale instruction) and trials (6). Not comparable; the size of each factor is unknown.
 
 **Limitations**
-- Substring scoring can pass an episode that states the figure wrongly; a semantic audit of the kept episodes was considered and **not done** (user decision), so false passes among the 370 are unmeasured.
+- Substring scoring can pass an episode that states the figure wrongly; a semantic audit of the kept episodes was considered and **not done** (project decision), so false passes among the 370 are unmeasured.
 - 83 examples come from a different generator (thinking mode, visible reasoning dropped), so the data mixes two teacher behaviours. Tagged by `variant` for ablation.
 - The user simulator is noisy (task 59). The same noise applies to the student's dev/test evaluation.
 - Pass 2's 17 tasks were chosen from the same data they are compared against.

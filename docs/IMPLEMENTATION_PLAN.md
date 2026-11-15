@@ -9,7 +9,7 @@ Stage 5 design was approved on 2026-11-13.
 - Inference: vLLM, falling back to HF `generate`. AuditKIT for statistics only. DAgger-lite (up to the first error) is optional.
 
 Hard deadline: Nov 15 23:59 AoE (Nov 16 17:29 IST). Capacity: solo, 15–35 h.
-Run location (user-decided 2026-11-13): API-only jobs (teacher generation, teacher eval) run on the Mac. Everything that loads an Aya model runs on Kaggle/Colab T4.
+Run location (decided 2026-11-13): API-only jobs (teacher generation, teacher eval) run on the Mac. Everything that loads an Aya model runs on Kaggle/Colab T4.
 
 Rules for every slice:
 - Each slice needs its own approval before coding.
@@ -41,7 +41,7 @@ Rules for every slice:
   - `docs/DECISIONS.md`: add D3 (OPEN-1…9 outcomes, and the run-location decision).
   - `docs/REQUIREMENTS.md`: mark R8 resolved, note the OpenRouter limits finding, amend U4 (API jobs run on the Mac).
   - `docs/IMPLEMENTATION_PLAN.md` (new): this plan.
-- **Check:** the user reviews the diffs.
+- **Check:** the diffs are reviewed.
 - **Risk:** none.
 
 ### S1: One teacher episode, end to end, on the Mac (~2–3 h)
@@ -81,7 +81,7 @@ Rules for every slice:
   - About 20 teacher episodes on train tasks.
   - `metrics.py` computes pass^1, pass^3, valid-call rate, steps, loop/abort rate and cost per success.
   - A short pilot report: real $/episode, teacher success rate, token-length percentiles.
-- **Gate:** confirm or adjust K, k and the budget split with the user before S4.
+- **Gate:** confirm or adjust K, k and the budget split before S4.
 - **Files:** `metrics.py`, `tests/test_metrics.py`, `evaluate.py` (record schema).
 - **Acceptance checks:**
   - The metrics match hand-computed values on a toy fixture.

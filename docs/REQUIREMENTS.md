@@ -2,11 +2,11 @@
 
 _Stage 2 (requirements discovery), drafted 2026-11-11. Updated 2026-11-12 after stage 3 research._
 
-**Labels:** **[O]** organizer-stated · **[U]** user-decided · **[I]** inferred · **[P]** proposal from Claude that the user has approved (see section 4) · **[R]** constraint or risk found in research (see section 6)
+**Labels:** **[O]** organizer-stated · **[U]** project decision · **[I]** inferred · **[P]** proposal that was approved (see section 4) · **[R]** constraint or risk found in research (see section 6)
 **Evidence tags:** [V] verified from a primary source · [M] well known, cited from memory · [C] unverified community claim · [A] arithmetic, not a measurement
 
 **Sources:**
-- Organizer pages: verbatim copies of hackathon.lexsi.ai /submit, /eligibility, /faqs and /structure, supplied by the user on 2026-11-12. /rules and /tracks are paraphrased from the home page (fetched 2026-11-11).
+- Organizer pages: verbatim copies of hackathon.lexsi.ai /submit, /eligibility, /faqs and /structure, copied by the author on 2026-11-12. /rules and /tracks are paraphrased from the home page (fetched 2026-11-11).
 - agenttune.lexsi.ai: home, agentic-spine and FAQ pages. auditkit.lexsi.ai: home page.
 - Anthropic Consumer Terms (effective 2025-10-08). DeepSeek Open Platform ToS (effective 2026-04-29).
 - Stage 3 research sources are linked in `DOMAIN_GLOSSARY.md`.
@@ -36,7 +36,7 @@ _Stage 2 (requirements discovery), drafted 2026-11-11. Updated 2026-11-12 after 
   - "Google Colab and Kaggle also give generous free GPU quotas, which can be enough for the Tiny Aya models."
   - Finalists get $200 more.
 
-## 2. User decisions [U]
+## 2. Project decisions [U]
 | ID | Date | Decision |
 |---|---|---|
 | U1 | 2026-11-11 | This is a real hackathon submission. The organizer rules and the deadline are hard constraints. |
@@ -44,7 +44,7 @@ _Stage 2 (requirements discovery), drafted 2026-11-11. Updated 2026-11-12 after 
 | U3 | 2026-11-11 | Domain: general multi-step tool/API calling, **English only**. Multilingual is future work. |
 | U4 | 2026-11-11, amended 2026-11-13 | Compute: $20 HF credits plus Kaggle/Colab only. The Mac is not used for training, or for running any Aya model. *Amended 2026-11-13:* API-only jobs (teacher generation and teacher evaluation) run on the Mac (D3.10). |
 | U5 | 2026-11-11 | Teacher: the **DeepSeek API, at most $5 in total** (trajectory generation plus teacher baseline). **Open datasets and existing high-quality teacher traces complement** the DeepSeek calls. |
-| U6 | 2026-11-11 | Claude is not used as a teacher. The Claude Pro subscription is excluded (Consumer Terms §3 forbid automated access and training models on outputs). The Anthropic API route is not being pursued. |
+| U6 | 2026-11-11 | No Anthropic model is used as a teacher; a consumer subscription is excluded (Consumer Terms §3 forbid automated access and training models on outputs). The Anthropic API route is not being pursued. |
 | U7 | 2026-11-11 | Capacity: solo, 15–35 hours before the deadline. |
 | U8 | 2026-11-11 | Lexsi repos (AgentTune, AuditKIT) are preferred if they fit; otherwise use standard libraries. |
 | U9 | 2026-11-11 | The student's size class (Tiny Aya vs Aya Expanse 8B) and variant are still open; research evidence is now in. |
@@ -88,7 +88,7 @@ _Stage 2 (requirements discovery), drafted 2026-11-11. Updated 2026-11-12 after 
 | R4 | Resolved 2026-11-13 | **No Aya chat template has a tool role, a tool-schema slot or `{% generation %}` tags.** This covers Global, both thinkers and Expanse 8B. Global's template enforces user/assistant alternation and drops the content of other roles. So we need our own text format for tool calls and results and our own loss masks: a known task, no longer a risk. No model card mentions tools. | Templates read with HF token [V] |
 | R5 | P1 | τ²-bench's default reward is DB × COMMUNICATE, and COMMUNICATE uses an LLM judge by default. Meeting P2 needs the substring scorer or a DB-only reward basis. **Update 2026-11-13 (see D4):** at the pinned commit, 112 of 114 retail tasks have `reward_basis = [DB, NL_ASSERTION]` and none has COMMUNICATE. NL_ASSERTION is an OpenAI LLM judge (`gpt-5.4-mini`) that runs on 40 tasks. We therefore compute DB × substring-COMMUNICATE ourselves, so our numbers are **not** the official leaderboard score. | τ²-bench evaluation docs [V]; pinned-commit task data [V] |
 | R6 | P1 | APIGen-MT-5k likely fails AC9: CC-BY-NC, research only, an OpenAI non-compete clause, and possible overlap with τ-bench's test tasks [unverified]. xLAM-60k is CC-BY-4.0, but its "research only" note is ambiguous. | Dataset cards [V] |
-| R8 | Resolved 2026-11-13 | The chosen student (Tiny Aya En-Thinker, D1) was not on the organizers' permitted list (O2). **The user confirmed that Tiny Aya with 32K context and thinking mode is allowed** (D3.0). | User confirmation |
+| R8 | Resolved 2026-11-13 | The chosen student (Tiny Aya En-Thinker, D1) was not on the organizers' permitted list (O2). **It was confirmed that Tiny Aya with 32K context and thinking mode is allowed** (D3.0). | User confirmation |
 | R9 | P1 (noted 2026-11-13) | OpenRouter `:free` models are capped at 20 requests/min and 50/day (1,000/day after buying ≥$10 of credit). That's unusable as the user simulator at our volume, so DeepSeek Flash is used instead (D3.2). | OpenRouter limits docs [V] |
 | R7 | P0 if missed | T4/P100 GPUs have no bf16, and TRL defaults to bf16, so fp16 must be set explicitly. FlashAttention-2 is unavailable on T4, so `padding_free` can't be used. | TRL docs [V]; hardware [M] |
 

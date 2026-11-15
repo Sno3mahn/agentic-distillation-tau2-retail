@@ -38,7 +38,7 @@ Source: hackathon.lexsi.ai home page, read on 2026-11-11. The `/tracks` URL retu
 - **Compute:** $20 of Hugging Face credits, plus free Colab and Kaggle quotas.
 - **Judging:** detailed criteria and weightings are not published.
 
-## User decisions
+## Project decisions
 
 | Date | Decision | Status |
 |---|---|---|

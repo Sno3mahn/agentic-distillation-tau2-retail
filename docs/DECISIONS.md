@@ -2,7 +2,7 @@
 
 _Dated log. Each entry gives the decision, the reasons, the alternatives considered and its status. Requirement IDs (O/U/P/R/AC) refer to REQUIREMENTS.md._
 
-## D1 — Solution direction (2026-11-13, user-decided in stage 4)
+## D1 — Solution direction (2026-11-13, decided in stage 4)
 **Decision:**
 - **Core (S2):** behaviour cloning. DeepSeek generates trajectories on the training tasks, only successful ones are kept (success-filtered, using the DB-state check), and Tiny Aya En-Thinker (3.35B, 32K context) is LoRA-SFT'd on them.
 - **Next layer, if time permits (S3):** one DAgger-lite round.
@@ -36,7 +36,7 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 - how strong B0 is (if strong, S3's focus on recovery matters more)
 - schedule slippage (drops S3)
 
-## D2 — Environment (2026-11-13, user-decided in stage 4)
+## D2 — Environment (2026-11-13, decided in stage 4)
 **Decision:** τ²-bench **retail** domain, using its official split: 74 train / 40 test tasks, 17 tools.
 
 **Reasons:**
@@ -49,7 +49,7 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 
 **Status:** decided.
 
-## D3 — Design decisions (2026-11-13, user-decided in stage 5)
+## D3 — Design decisions (2026-11-13, decided in stage 5)
 | ID | Decision | Alternatives considered | Reason |
 |---|---|---|---|
 | D3.0 | R8 resolved: the user confirmed Tiny Aya with 32K context and thinking mode is allowed. **The student is Tiny Aya En-Thinker; the Global fallback is retired** | — | Organizer confirmation, relayed by the user |
@@ -67,7 +67,7 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 **Status:** decided.
 **Open:** for failed DAgger-lite episodes that have no invalid call or tool error, relabelling all their turns is a proposal, to be confirmed at slice O1.
 
-## D4 — Reward definition (2026-11-13, user-decided in S1)
+## D4 — Reward definition (2026-11-13, decided in S1)
 **Decision:** reward = DB check × substring match on `communicate_info`, computed from τ²'s own `EnvironmentEvaluator` and `CommunicateEvaluator(scorer=substring)`. The NL_ASSERTION judge is not run. DB-only is also logged.
 
 **Reasons:**
@@ -84,19 +84,19 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 **Reason:** in the 21 saved teacher episodes, 33 of 246 assistant turns carry 2–6 parallel calls, and 57 carry text plus a call. A one-call protocol would have dropped or split them.
 **Status:** decided.
 
-## D6 — Empty thinking block on every assistant turn (2026-11-14, user-confirmed)
+## D6 — Empty thinking block on every assistant turn (2026-11-14, confirmed)
 **Decision:** the formatter renders `<|START_THINKING|><|END_THINKING|>` (the `/no_think` form) at the start of every assistant turn, in history as well as in the generation prompt. System and user turns follow Cohere's template exactly (tested).
 **Reason:** the native template omits the thinking block for past assistant turns but includes it in the generation prompt, so the prefix property fails (checked: `False`). One-pass-per-episode SFT needs each turn to look as it did when generated.
 **Alternative considered:** native history with one training example per assistant turn. Rejected: roughly 10× the sequences of 5–10K tokens on a T4.
 **Cost:** history is non-native for both B0 and S2 (same for both, so the comparison stays fair). The effect on B0 is unmeasured. **Status:** decided.
 
-## D7 — Stop at the first tool result (2026-11-14, user-approved after the S2b B0 run)
+## D7 — Stop at the first tool result (2026-11-14, approved after the S2b B0 run)
 **Decision:** at inference, generation stops when the model starts a `<tool_result`; the text is cut there and the response block closed. Applied identically to B0 and S2.
 **Evidence:** B0's first Kaggle run (task 75, 2026-11-14) wrote valid `<tool_call>` JSON but then hallucinated its own `<tool_result>` blocks and further calls with placeholder arguments (`your_user_id`); the strict parser rejected both attempts and the episode aborted on turn 1 (9.8K tokens in, 563 out, 45 s).
 **Reason:** otherwise B0's score measures a formatting failure, not capability. The fine-tuned model learns to stop after its calls, so S2 is unaffected.
 **Kept as evidence:** the pre-D7 run is cited in the write-up as B0 hallucinating tool results. **Status:** decided.
 
-## D8 — Teacher variant and gate values (2026-11-14, user-decided at the S3 gate)
+## D8 — Teacher variant and gate values (2026-11-14, decided at the S3 gate)
 **Decision:** training data comes from the **rationale** variant (DeepSeek-Flash, non-thinking, system prompt asks for one short sentence before every tool call). **K = 6** episodes per train task, **k = 3** eval trials per task.
 **Evidence (EXPERIMENT_LOG E1):** 10 tasks × 2 trials × 3 variants. Pass rates 85% / 95% / 100% (base / rationale / thinking), with paired CIs touching 0, so success differences are not established. Cost per episode $0.0020 / $0.0020 / $0.0031.
 **Reasoning:** data is success-filtered, so teacher pass rate only sets yield (high for all variants), not quality. Rationale puts visible rationales on ~93% of tool-call turns (D3.1's short visible thoughts), at the lowest cost.
@@ -111,7 +111,7 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 - A dev split carved out of the 74 train tasks (AC5).
 - Where AgentTune and AuditKIT fit (U8).
 
-## D9 — Checkpoint for the test run, and the pre-registered bar (2026-11-15, user-approved)
+## D9 — Checkpoint for the test run, and the pre-registered bar (2026-11-15, approved)
 **Decision:** test the **epoch3** adapter; freeze it by sha256 in `results/threshold.md` before any student test episode. The bar: student test pass^1 beats B0, with the paired 95% task-resampled bootstrap CI lower bound above 0.
 **Evidence:** E4 (epoch3 42% vs epoch2 25% on 12 dev tasks, no aborts). The difference is within noise; epoch3 was also the lowest training loss.
 **Alternatives:** epoch2; choosing after more dev trials (no GPU time). **Status:** decided, not to be changed after seeing test results.
@@ -124,5 +124,5 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 **Decision:** the "odd" test half ran on Kaggle (T4 x2); the "even" half runs on Colab (T4), same code commit and adapter hash, greedy decoding. B0 runs all 40 tasks on Kaggle.
 **Reasoning:** Kaggle attempt 1 lost GPU 0 to a bug; rerunning all 40 would cost ~5 GPU hours before the deadline. **Cost:** torch/transformers versions may differ, which can change greedy outputs slightly. Recorded in `results/env_colab.json` and noted as a limitation. **Status:** decided.
 
-## D12 — Continued training is a separate, post-hoc experiment (2026-11-15, user-approved)
+## D12 — Continued training is a separate, post-hoc experiment (2026-11-15, approved)
 **Decision:** S8's extra epochs (E6) are evaluated on dev only and reported as an exploratory result. They do not replace epoch3 as the pre-registered test result and are not run on test unless the user decides otherwise, in which case both results are reported. **Status:** decided.
