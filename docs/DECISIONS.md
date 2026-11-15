@@ -110,3 +110,19 @@ _Dated log. Each entry gives the decision, the reasons, the alternatives conside
 - Trials per task, for both data generation and evaluation.
 - A dev split carved out of the 74 train tasks (AC5).
 - Where AgentTune and AuditKIT fit (U8).
+
+## D9 — Checkpoint for the test run, and the pre-registered bar (2026-11-15, user-approved)
+**Decision:** test the **epoch3** adapter; freeze it by sha256 in `results/threshold.md` before any student test episode. The bar: student test pass^1 beats B0, with the paired 95% task-resampled bootstrap CI lower bound above 0.
+**Evidence:** E4 (epoch3 42% vs epoch2 25% on 12 dev tasks, no aborts). The difference is within noise; epoch3 was also the lowest training loss.
+**Alternatives:** epoch2; choosing after more dev trials (no GPU time). **Status:** decided, not to be changed after seeing test results.
+
+## D10 — Crashes count as failures (2026-11-15)
+**Decision:** an episode that crashes (e.g. CUDA OOM) is recorded with `terminated_by: "crash"`, reward 0, and stays in the denominator. Crash rate is reported per model, plus a sensitivity analysis excluding crashed episodes.
+**Reasoning:** dropping crashes would favour the model that runs longer episodes (the trained student), because B0 aborts early and rarely reaches long contexts. **Status:** decided.
+
+## D11 — Test set run across two environments (2026-11-15)
+**Decision:** the "odd" test half ran on Kaggle (T4 x2); the "even" half runs on Colab (T4), same code commit and adapter hash, greedy decoding. B0 runs all 40 tasks on Kaggle.
+**Reasoning:** Kaggle attempt 1 lost GPU 0 to a bug; rerunning all 40 would cost ~5 GPU hours before the deadline. **Cost:** torch/transformers versions may differ, which can change greedy outputs slightly. Recorded in `results/env_colab.json` and noted as a limitation. **Status:** decided.
+
+## D12 — Continued training is a separate, post-hoc experiment (2026-11-15, user-approved)
+**Decision:** S8's extra epochs (E6) are evaluated on dev only and reported as an exploratory result. They do not replace epoch3 as the pre-registered test result and are not run on test unless the user decides otherwise, in which case both results are reported. **Status:** decided.

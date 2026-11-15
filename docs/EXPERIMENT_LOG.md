@@ -65,3 +65,40 @@ See DESIGN.md "S2b results" and "B0 under D7". Qualitative only (3 dev episodes,
 - 83 examples come from a different generator (thinking mode, visible reasoning dropped), so the data mixes two teacher behaviours. Tagged by `variant` for ablation.
 - The user simulator is noisy (task 59). The same noise applies to the student's dev/test evaluation.
 - Pass 2's 17 tasks were chosen from the same data they are compared against.
+
+## E3 — LoRA SFT of the student (2026-11-15, slice S5)
+**Setup:** Tiny Aya En-Thinker (3.35B), LoRA r=16, alpha=32, dropout 0.05 on q/k/v/o/gate/up/down; `data/sft/train_v2.jsonl` (370 examples, none dropped for length); 3 epochs, lr 1e-4 with 5% warmup, grad-accum 8 (47 optimizer steps per epoch), fp16 with GradScaler, fp32 LoRA weights, gradient checkpointing, seed 20261115. One Kaggle T4. Loss only on assistant turns, with `lm_head` applied only at supervised positions (`selective_loss`, tested equal to the HF loss and gradients in `tests/test_loss_positions.py`).
+**Memory fixes needed to fit 12.9K-token examples on a 15 GB T4:** chunked selective loss (the full 262K-vocab logits do not fit); `use_gqa_in_sdpa` patched off so SDPA uses the memory-efficient kernel instead of falling back to the T×T math kernel (`disable_sdpa_gqa`, output equality tested).
+**Results** (`data/kaggle_out_s5i/out/lora/train_log.jsonl`): mean train loss per epoch 0.629 / 0.437 / 0.381; 0 skipped steps; peak memory 13.4 GB; median 397 tokens/s. Checkpoints `epoch1..3`.
+**Limitation:** training loss only; no held-out loss was computed. Generalisation is judged by the dev evaluation (E4).
+
+## E4 — Dev evaluation and checkpoint choice (2026-11-15, slice S6)
+**Setup:** epoch2 and epoch3 on the 14 dev tasks × 1 trial, greedy, max_new_tokens 1024, user simulator DeepSeek Flash temperature 0. Kaggle T4 x2 (one checkpoint per GPU).
+**Results** (12 tasks scored; tasks 103 and 110 crashed with CUDA out-of-memory before per-episode crash records existed, so they are missing for both checkpoints):
+
+| metric | epoch2 | epoch3 |
+|---|---|---|
+| pass^1 | 25% [0, 50] | 42% [17, 67] |
+| valid-call rate | 87% | 84% |
+| loop/abort rate | 33% | 0% |
+| steps | 18.5 | 18.5 |
+
+Paired epoch3 − epoch2: pass^1 +17 pts [−17, +58] (not significant). **epoch3 chosen** (higher point estimate, no aborts); see D9.
+**Limitations:** 12 episodes, 1 trial; the difference is within noise. The OOM cause on long episodes is not confirmed (hypothesis: KV cache plus prefill on 30K+-token contexts).
+
+## E5 — Test evaluation (2026-11-15, slice S7; in progress)
+Pre-registered in `results/threshold.md` (written 13:49 IST, before any student test episode): frozen epoch3 adapter (sha256 `88544be6…c85b1`), 40 test tasks × 3 trials, crashes and aborts score 0, bar = paired 95% task-bootstrap CI lower bound of (student − B0) pass^1 above 0.
+
+**Teacher (`base` variant, context only), 40 tasks × 3 trials:** pass^1 89% [83, 95], pass^3 72% [58, 85], valid-call rate 98%, 12.3 steps, cost per success $0.0023. Cost $0.25.
+
+**Student, how the test set was run:** attempt 1 on Kaggle split the tasks over two GPUs; GPU 0 died on a run-name collision (fixed: pid suffix), so only the "odd" half (`test_ids[1::2]`, 20 tasks) ran. The "even" half runs on Colab (single T4, `notebooks/s7b_test_eval_colab.ipynb`, same code at commit 341ab2a, same adapter hash; library versions in `results/env_colab.json`). See D11.
+
+**Student, odd half (20 tasks × 3 = 60 episodes):** pass^1 42% [27, 57], pass^3 15% [0, 35]; valid-call rate 92%; 17.1 steps; loop/abort 8%; 1 crash (task 36, CUDA OOM at the first turn), 2 `error` terminations (tasks 39, 53), 1 `max_steps` (task 111). 10 of 20 tasks never passed. Same 20 tasks, teacher − student pass^1: 50 pts [35, 65].
+**Pending:** even half (Colab), B0 on all 40 tasks (Kaggle `agentic-distill-s7-b0-test-eval`), then the pooled paired comparison against B0 and a sensitivity check excluding crashes.
+**Student cost per success ($0.0015)** counts only the user-simulator API calls, not GPU time; the GPU cost is added in the write-up.
+
+## E6 — Continued training (2026-11-15, post-hoc, not pre-registered)
+**Question:** does more training beyond epoch3 help? Only for the write-up; the pre-registered test result stays epoch3 (D12).
+**Setup:** start from the epoch3 adapter (`--init-adapter`), 2 more epochs, lr 5e-5, seed 20261116, same data. Kaggle T4.
+**Results:** mean train loss 0.372 / 0.329 (cumulative epochs 4 / 5); 0 skipped steps. Checkpoints in `data/kaggle_out_s8/out/lora_ext/epoch{1,2}`.
+**Pending:** dev evaluation on the first 8 dev tasks × 1 trial (`agentic-distill-s8-dev-eval`), compared against epoch3 on the same 8 tasks (4/8 in E4). With 8 episodes this can only show a large change.
