@@ -87,7 +87,7 @@ def eval_record(sim, sc: dict, label: str, ctx: dict, cost_usd: float) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tasks", nargs="+", required=True, help="task IDs of the chosen split, or 'all'")
-    ap.add_argument("--split", choices=["dev", "test"], default="dev",
+    ap.add_argument("--split", choices=["train", "dev", "test"], default="dev",
                     help="test is locked until results/threshold.md exists (C9)")
     ap.add_argument("--trials", type=int, default=1)
     ap.add_argument("--slice", required=True)

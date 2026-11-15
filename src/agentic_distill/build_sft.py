@@ -27,14 +27,20 @@ from agentic_distill.formatter import GEN_PROMPT, Formatter, from_tau2
 IGNORE = -100
 
 
-def build_example(fmt: Formatter, tok, policy: str, tools: list[dict], chat: list[dict]) -> dict:
-    """-> {input_ids, labels}. Tokenizes piece by piece (pieces are delimited by special tokens)."""
+def build_example(fmt: Formatter, tok, policy: str, tools: list[dict], chat: list[dict],
+                  loss_on: str = "all") -> dict:
+    """-> {input_ids, labels}. Tokenizes piece by piece (pieces are delimited by special tokens).
+
+    loss_on="all": loss on every assistant turn after the greeting (S4 data).
+    loss_on="last": loss only on the final assistant turn (DAgger labels; the prefix is the student's own)."""
     enc = lambda s: tok(s, add_special_tokens=False)["input_ids"]
     ids, labels = enc(fmt.head(policy, tools)), None
     labels = [IGNORE] * len(ids)
     greeting_done = False
-    for role, text in fmt.render_turns(chat):
-        if role == "assistant" and greeting_done:
+    turns = fmt.render_turns(chat)
+    last = max(i for i, (r, _) in enumerate(turns) if r == "assistant")
+    for k, (role, text) in enumerate(turns):
+        if role == "assistant" and greeting_done and (loss_on == "all" or k == last):
             assert text.startswith(GEN_PROMPT), "assistant turn must start with the generation prompt"
             prompt_ids, gen_ids = enc(GEN_PROMPT), enc(text[len(GEN_PROMPT):])
             ids += prompt_ids + gen_ids

@@ -62,7 +62,7 @@ prices:
 
 budget:
   total_usd: 5.00
-  slices_usd: {s1_smoke: 0.10, s3_pilot: 0.40, s4_teacher_data: 3.00, eval_teacher: 1.00, eval_student: 0.40, reserve: 0.10}  # eval_student = user-sim cost of student evals (added 2026-11-15, from reserve)
+  slices_usd: {s1_smoke: 0.10, s3_pilot: 0.40, s4_teacher_data: 2.50, eval_teacher: 1.00, eval_student: 0.40, dagger: 0.50, reserve: 0.10}  # eval_student = user-sim cost of student evals (added 2026-11-15, from reserve); dagger = rollouts + relabels (2026-11-15, from s4_teacher_data, which spent $1.32)
 
 paths:
   raw: data/raw
