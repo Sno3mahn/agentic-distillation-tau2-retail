@@ -44,7 +44,7 @@ secondary metric picked after seeing results, among several comparisons, so trea
 - Model (LoRA adapter, tag `v1-epoch3`): https://huggingface.co/ritabrata/tiny-aya-en-thinker-tau2-retail-lora
 - Dataset (split, teacher traces, SFT set, every evaluation record and trace, tag `v1`): https://huggingface.co/datasets/ritabrata/agentic-distillation-tau2-retail-data
 - Collections: [models](https://huggingface.co/collections/ritabrata/agentic-distillation-retail-models-6afa0df9dbeb2613fc80c373), [datasets](https://huggingface.co/collections/ritabrata/agentic-distillation-retail-datasets-6afa0dfb6a5b1af4d9af1ef8)
-- Abstract and submission sheet: [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
+- Abstract and submission summary: [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
 
 ## Setup
 

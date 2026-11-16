@@ -1,4 +1,4 @@
-# Submission sheet (form fields)
+# Submission summary
 
 ## Track / problem statement
 Track 3, problem statement 3: agentic distillation.
@@ -20,7 +20,7 @@ Track 3, problem statement 3: agentic distillation.
   episodes. The definition of "distill" used here is AgentTune's: behaviour cloning on a teacher's captured
   trajectories. Statistics (pass^k, task-resampled bootstrap) are in `src/agentic_distill/metrics.py`.
 
-## Abstract (plain text, no markdown; paste as is)
+## Abstract
 
 Distilling a tool-calling agent into a 3.35B model: what transfers, what does not, and what it costs
 
