@@ -61,6 +61,23 @@ def main() -> None:
         for m, recs in sets.items():
             (ROOT / f"results/dagger_dev_{m}.jsonl").write_text(
                 "".join(json.dumps(r) + "\n" for r in sorted(recs, key=lambda r: (r["task_id"], r["trial"]))))
+    elif mode == "test2":
+        ids = [str(t) for t in split["test_ids"]]
+        sets = {"dagger_r2": pool("data/modal_out_daggertest_r2/g*/data/raw/*", ids, 3)}
+        (ROOT / "results/test_pooled_dagger_r2.jsonl").write_text(
+            "".join(json.dumps(r) + "\n" for r in sorted(sets["dagger_r2"], key=lambda r: (r["task_id"], r["trial"]))))
+        for m in ("dagger_r1", "student_epoch3", "b0"):
+            sets[m] = [json.loads(l) for l in open(ROOT / f"results/test_pooled_{m}.jsonl")]
+        table(sets)
+        print("\nPaired over the 40 test tasks (95% task-bootstrap CI):")
+        lo = paired("dagger_r2", "student_epoch3", sets)
+        paired("dagger_r2", "dagger_r1", sets)
+        paired("dagger_r2", "b0", sets)
+        print(f"\nPre-registered rule (results/threshold_dagger2.md): r2 better than epoch3 only if the CI lower bound of the "
+              f"pass^1 difference is above 0 -> {'BETTER' if lo > 0 else 'NO IMPROVEMENT SHOWN'} (lower bound {100 * lo:+.1f} pts)")
+        nc = {m: [r for r in sets[m] if r["terminated_by"] != "crash"] for m in ("dagger_r2", "student_epoch3")}
+        print("Sensitivity, crashes excluded:")
+        paired("dagger_r2", "student_epoch3", nc, ks=("pass^1",))
     else:
         ids = [str(t) for t in split["test_ids"]]
         sets = {"dagger_r1": pool("data/modal_out_daggertest/g*/data/raw/*", ids, 3)}

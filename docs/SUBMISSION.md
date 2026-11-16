@@ -20,7 +20,7 @@ Track 3, problem statement 3: agentic distillation.
   episodes. The definition of "distill" used here is AgentTune's: behaviour cloning on a teacher's captured
   trajectories. Statistics (pass^k, task-resampled bootstrap) are in `src/agentic_distill/metrics.py`.
 
-## Abstract
+## Abstract (v1: epoch3 vs baseline, the pre-registered result)
 
 **Distilling a tool-calling agent into a 3.35B model: what transfers, what does not, and what it costs**
 
@@ -60,3 +60,43 @@ batching) is in place; we state the measurement and the assumption instead of a 
 Everything needed to check the claims is public: code, the task split, raw teacher traces, the training set, every
 evaluation episode and trace, the pre-registration files, and a script that rebuilds the result table from the
 published records.
+
+## Abstract (v2: use only if resubmitting with the DAgger variants)
+
+**Distilling a tool-calling agent into a 3.35B model: what transfers, what does not, and what it costs**
+
+We distil a multi-turn, tool-calling customer-service agent from an API teacher (DeepSeek V4.1 Flash) into Tiny Aya
+En-Thinker (3.35B, LoRA) and measure it in a stateful environment, τ²-bench retail: 17 tools, a written policy, an
+LLM-simulated user, and a reward that checks the final database state and the facts told to the user (substring scorer,
+no LLM judge). Tiny Aya has no tool-calling template, so we define a JSON-in-tags call format with one formatter shared
+by training and inference.
+
+Method: behaviour cloning on 370 teacher trajectories that fully succeeded (59 tasks), 3 epochs, loss on assistant turns
+only, on a free T4. The 40-task official test split was never used for training, checkpoint choice or prompt tuning.
+The success bar and the frozen adapter hash were written down before any student test episode.
+
+Results on 40 held-out tasks × 3 trials:
+
+| | pass^1 | pass^3 | valid tool calls |
+|---|---|---|---|
+| base model, prompted | 2.5% | 2.5% | 7.3% |
+| distilled student (headline) | 40.0% | 10.0% | 88.7% |
+| + DAgger round 1 | 36.7% | 17.5% | 91.5% |
+| + DAgger round 2 | 46.7% | 30.0% | 90.5% |
+| teacher | 89.2% | 72.5% | 97.7% |
+
+The paired gain of the student over the base model is +37.5 points of pass^1 (95% CI [+25.8, +48.3], resampling tasks);
+the pre-registered bar is met. Reliability is the weak point: the student succeeds on all three trials of a task only
+10% of the time, against 72.5% for the teacher.
+
+We then tried DAgger, where the teacher labels states the student itself reached, with plans fixed in advance. Round 1
+(one unfiltered teacher turn per state) did not help (pass^1 −3.3 points, CI [−13.3, +7.5]). Round 2 keeps a label only
+if a teacher rollout from that state succeeds. It gives +6.7 points of pass^1 (CI [−5.0, +18.3]), which does not meet
+the pre-registered rule, and +20.0 points of pass^3 (CI [+5.0, +37.5]). The pass^3 gain is a secondary metric chosen
+after the fact, among several comparisons, so we report it as suggestive. Two more plain epochs did not help on dev.
+
+The cost case is not made: served naively (HF `generate`, no prefix caching) on a rented T4, the student costs about
+$0.12 per successful task against $0.0023 for the teacher API, and its CC-BY-NC licence excludes commercial use.
+
+All code, splits, teacher traces, training sets, every evaluation episode and the pre-registration files are public,
+with a script that rebuilds the tables from the published records.

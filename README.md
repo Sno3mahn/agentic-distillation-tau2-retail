@@ -24,9 +24,20 @@ environment, then evaluated on held-out tasks against the same model without tra
   episode, ~5 min/episode); serving with prefix caching and batching (e.g. vLLM) is the obvious next step and was
   not done here. The student's licence (CC-BY-NC-4.0) also rules out commercial use without a Cohere licence.
 
-Exploratory, not pre-registered: two more epochs of SFT (cumulative 5) did not improve dev pass rate (3/8 vs 4/8 for
-epoch 3). A one-round DAgger experiment is in progress; its plan is fixed in
-[`results/threshold_dagger.md`](results/threshold_dagger.md).
+**Exploratory follow-ups (plans fixed in `results/threshold_dagger.md`, `results/threshold_dagger2.md`; the headline above stays epoch3 vs B0):**
+two more epochs of SFT (cumulative 5) did not improve dev pass rate (3/8 vs 4/8 for epoch 3). One round of DAgger
+(teacher labels at states the student itself visited) was tried in two variants, same 40 test tasks × 3 trials:
+
+| model | pass^1 | pass^3 |
+|---|---|---|
+| epoch3 (headline student) | 40.0% [30.0, 50.0] | 10.0% [2.5, 20.0] |
+| DAgger r1: one teacher turn per state, not success-filtered | 36.7% [25.8, 48.3] | 17.5% [5.0, 30.0] |
+| DAgger r2: labels kept only if a teacher rollout from that state succeeds | 46.7% [33.3, 60.0] | 30.0% [17.5, 45.0] |
+
+Paired vs epoch3: r1 −3.3 pts pass^1 [−13.3, +7.5]; r2 +6.7 pts pass^1 [−5.0, +18.3] and +20.0 pts pass^3 [+5.0, +37.5].
+**Neither variant met the pre-registered rule (pass^1 CI lower bound > 0).** r2's pass^3 gain excludes 0, but it is a
+secondary metric picked after seeing results, among several comparisons, so treat it as suggestive. See E7/E8 in
+[`docs/EXPERIMENT_LOG.md`](docs/EXPERIMENT_LOG.md). Reproduce: `PYTHONPATH=src python scripts/pool_dagger.py test2`.
 
 ## Published artifacts
 
@@ -91,7 +102,7 @@ and run `PYTHONPATH=src python scripts/pool_test.py`.
 | student test, even tasks (chunks 3-4) | `scripts/modal_s7b_missing.py` | Modal T4 | torch 2.15.0, transformers 5.23.0, peft 0.21.3 |
 | B0 test | `notebooks/s7_b0_test_eval_kaggle.ipynb` | Kaggle T4 ×2 | transformers 5.23.0 |
 | continued training, its dev eval | `notebooks/s8_train_more_kaggle.ipynb`, `scripts/modal_s8_dev.py` | Kaggle T4, Modal T4 | as above |
-| DAgger round 1 | `dagger_relabel.py`, `scripts/modal_student_eval.py`, `scripts/modal_dagger_train.py` | Modal T4 / L4 | `requirements-gpu.txt` |
+| DAgger rounds 1 and 2 | `dagger_relabel.py` (r1), `dagger_rollout.py` (r2), `scripts/modal_student_eval.py`, `scripts/modal_dagger_train.py`, `scripts/run_dagger_r2_chain.sh` | Modal T4 / L4 | `requirements-gpu.txt` |
 
 `scripts/modal_student_eval.py` is the general runner; `modal_s7b_missing.py` and `modal_s8_dev.py` are kept as the
 exact code that produced those records. The test set was split across machines because a Kaggle bug (fixed) lost
